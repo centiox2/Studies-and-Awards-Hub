@@ -11,7 +11,8 @@ final availableAppTabsProvider = Provider<List<AppTab>>((ref) {
   final user = ref.watch(currentUserProvider);
   final accounts = ref.watch(accountsEnabledProvider);
   final aiAccess =
-      accounts && summaryAccessGranted(ref.watch(aiSummaryAccessProvider));
+      accounts &&
+      ref.watch(aiSummaryAccessProvider.select(summaryAccessGranted));
   final tabs = role?.canEdit == true
       ? AppTab.values
       : const [

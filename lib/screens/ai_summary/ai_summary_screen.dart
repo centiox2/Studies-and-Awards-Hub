@@ -43,7 +43,7 @@ class AiSummaryPreview extends ConsumerWidget {
   final double bottomPadding;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!summaryAccessGranted(ref.watch(aiSummaryAccessProvider))) {
+    if (!ref.watch(aiSummaryAccessProvider.select(summaryAccessGranted))) {
       return const SizedBox.shrink();
     }
     final state = ref.watch(aiSummariesProvider);
@@ -116,8 +116,8 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final access = ref.watch(aiSummaryAccessProvider);
-    if (!summaryAccessGranted(access)) {
+    if (!ref.watch(aiSummaryAccessProvider.select(summaryAccessGranted))) {
+      final access = ref.watch(aiSummaryAccessProvider);
       return ReportReader(
         template: null,
         reportDate: null,
@@ -192,6 +192,10 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
         detailed: _detailed,
         onView: (value) => setState(() => _detailed = value),
         onDate: (value) => setState(() => _selectedDate = value),
+        onRefresh: data == null
+            ? null
+            : () => ref.invalidate(aiSummariesProvider),
+        refreshing: state.isLoading,
       ),
       fallback: fallback,
     );
@@ -223,6 +227,8 @@ class _ReportHeader extends StatelessWidget {
     this.detailed = false,
     this.onView,
     this.onDate,
+    this.onRefresh,
+    this.refreshing = false,
   });
 
   final Map<String, dynamic>? data;
@@ -232,6 +238,8 @@ class _ReportHeader extends StatelessWidget {
   final bool detailed;
   final ValueChanged<bool>? onView;
   final ValueChanged<String?>? onDate;
+  final VoidCallback? onRefresh;
+  final bool refreshing;
 
   @override
   Widget build(BuildContext context) {
@@ -249,11 +257,44 @@ class _ReportHeader extends StatelessWidget {
     final factsStyle = theme.textTheme.bodySmall?.copyWith(
       color: colors.textMuted,
     );
-    final title = Text(
-      'AI summary',
-      style: theme.textTheme.headlineMedium?.copyWith(
-        fontSize: MediaQuery.sizeOf(context).width < 480 ? 24 : 28,
-      ),
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                'AI summary',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontSize: MediaQuery.sizeOf(context).width < 480 ? 24 : 28,
+                ),
+              ),
+            ),
+            if (onRefresh != null)
+              IconButton(
+                key: const ValueKey('refresh-ai-reports'),
+                tooltip: 'Refresh reports',
+                visualDensity: VisualDensity.compact,
+                onPressed: refreshing ? null : onRefresh,
+                icon: refreshing
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh, size: 18),
+              ),
+          ],
+        ),
+        if (cutoff != null) ...[
+          const SizedBox(height: 5),
+          Text('Data as of $cutoff', style: factsStyle),
+        ],
+        if (status != null) ...[
+          const SizedBox(height: 4),
+          Semantics(liveRegion: true, child: Text(status, style: factsStyle)),
+        ],
+      ],
     );
 
     ChoiceChip viewChip(String label, bool isDetailed) {
@@ -274,7 +315,9 @@ class _ReportHeader extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final scaler = MediaQuery.textScalerOf(context);
+        final wide = box.maxWidth >= scaler.scale(1000);
         final controls = Wrap(
+          alignment: wide ? WrapAlignment.end : WrapAlignment.start,
           spacing: 8,
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -320,38 +363,27 @@ class _ReportHeader extends StatelessWidget {
           ],
         );
         final hasControls = dates.isNotEmpty || canGenerate;
+        if (hasControls && wide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: title),
+              const SizedBox(width: 24),
+              Flexible(
+                flex: 2,
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: controls,
+                ),
+              ),
+            ],
+          );
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (hasControls && box.maxWidth >= scaler.scale(1000))
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(child: title),
-                  const SizedBox(width: 24),
-                  SizedBox(width: box.maxWidth * .58, child: controls),
-                ],
-              )
-            else ...[
-              title,
-              if (hasControls) ...[const SizedBox(height: 12), controls],
-            ],
-            if (cutoff != null || status != null) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 14,
-                runSpacing: 4,
-                children: [
-                  if (cutoff != null)
-                    Text('Data as of $cutoff', style: factsStyle),
-                  if (status != null)
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(status, style: factsStyle),
-                    ),
-                ],
-              ),
-            ],
+            title,
+            if (hasControls) ...[const SizedBox(height: 12), controls],
           ],
         );
       },

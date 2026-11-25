@@ -83,18 +83,14 @@ final aiSummariesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
 ) async {
   ref.watch(currentUserProvider.select((user) => user?.id));
   final service = ref.watch(aiSummaryServiceProvider);
-  if (!await ref.watch(aiSummaryAccessProvider.future)) {
+  // Rechecking access may replace the Future without changing the grant.
+  // Only a change to the effective grant should invalidate a loaded report.
+  if (!ref.watch(aiSummaryAccessProvider.select(summaryAccessGranted))) {
     throw StateError('Access has not been assigned.');
   }
-  if (!ref.mounted) throw StateError('The report request was cancelled.');
   final result = await service.read();
-  if (ref.mounted) {
-    _refresh(
-      ref,
-      const {'queued', 'running'}.contains(result['status'])
-          ? const Duration(seconds: 3)
-          : const Duration(minutes: 1),
-    );
+  if (ref.mounted && const {'queued', 'running'}.contains(result['status'])) {
+    _refresh(ref, const Duration(seconds: 3));
   }
   return result;
 });

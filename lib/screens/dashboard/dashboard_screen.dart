@@ -67,7 +67,7 @@ class DashboardScreen extends ConsumerWidget {
       if (allowed.contains(AppTab.todo))
         const BoardCard('todo', _TodoPanel(), column: 1),
       if (tracker) BoardCard('mix', _MixPanel(data: data, unit: unit)),
-      if (summaryAccessGranted(ref.watch(aiSummaryAccessProvider)))
+      if (ref.watch(aiSummaryAccessProvider.select(summaryAccessGranted)))
         const BoardCard('ai', AiSummaryPreview(bottomPadding: 0), column: 2),
       if (tracker) const BoardCard('client-trend', _ClientTrendPanel()),
       if (allowed.contains(AppTab.revenue))

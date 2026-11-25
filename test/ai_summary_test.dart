@@ -373,6 +373,17 @@ void main() {
         final details = find.byKey(const ValueKey('report-detailed-view'));
         final initialPosition = tester.getTopLeft(picker);
         final initialElement = tester.element(picker);
+        final title = find.text('AI summary');
+        final cutoff = find.textContaining('Data as of');
+        if (size.width < 1000) {
+          expect(
+            initialPosition.dy,
+            greaterThan(tester.getBottomLeft(cutoff).dy),
+          );
+        } else {
+          expect(initialPosition.dx, greaterThan(tester.getTopRight(title).dx));
+          expect(initialPosition.dy, lessThan(tester.getBottomLeft(cutoff).dy));
+        }
         expect(find.text('Today at a Glance'), findsOneWidget);
 
         await tester.tap(details);
@@ -669,8 +680,83 @@ void main() {
       await tester.pumpAndSettle();
       expect(reads, 2);
       expect(find.text('Automatically updated report.'), findsOneWidget);
+      await tester.pump(const Duration(minutes: 2));
+      await tester.pumpAndSettle();
+      expect(reads, 2);
     },
   );
+
+  testWidgets('Idle archive stays open during access checks', (tester) async {
+    var accessChecks = 0;
+    var reads = 0;
+    var revoked = false;
+    final recheck = Completer<bool>();
+    final db = openInMemoryDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          accountsEnabledProvider.overrideWithValue(true),
+          currentUserProvider.overrideWith(
+            () => _Person(
+              AppUser(
+                id: 1,
+                username: 'person',
+                fullName: 'Person',
+                role: UserRole.admin,
+              ),
+            ),
+          ),
+          aiSummaryServiceProvider.overrideWithValue(
+            AiSummaryService((name, [args]) async {
+              if (name == 'ai_summary_access') {
+                accessChecks++;
+                return accessChecks == 2 ? await recheck.future : !revoked;
+              }
+              expect(name, 'ai_summary_read');
+              reads++;
+              return summaryFixture();
+            }),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: AiSummaryScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final picker = find.byKey(const ValueKey('report-date-picker'));
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('17 Nov 2026').last);
+    await tester.pumpAndSettle();
+    final archive = find.text('Daily company overview for 2026-11-17.');
+    expect(archive, findsOneWidget);
+    expect(reads, 1);
+
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pump();
+    expect(accessChecks, 2);
+    expect(reads, 1);
+    expect(archive, findsOneWidget);
+    recheck.complete(true);
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    expect(archive, findsOneWidget);
+
+    await tester.tap(find.byTooltip('Refresh reports'));
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    expect(archive, findsOneWidget);
+
+    revoked = true;
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pumpAndSettle();
+    expect(accessChecks, 3);
+    expect(reads, 2);
+    expect(archive, findsNothing);
+    expect(find.textContaining('Admin must assign'), findsOneWidget);
+  });
+
   testWidgets(
     'Summary and detailed report use one panel with readable figures and complete findings',
     (tester) async {
