@@ -584,6 +584,11 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = 2;
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      expect(label('Existing'), findsNWidgets(2));
+      expect(
+        tester.getTopLeft(label('Existing').first).dy,
+        greaterThan(tester.getBottomLeft(bars.first).dy),
+      );
       expect(tester.getTopLeft(bars.first).dx, tester.getTopLeft(firstName).dx);
       expect(tester.getTopLeft(bars.last).dx, tester.getTopLeft(secondName).dx);
       expect(

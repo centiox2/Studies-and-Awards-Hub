@@ -475,52 +475,85 @@ class _WhoToday extends StatelessWidget {
     final scaler = MediaQuery.textScalerOf(context);
     final existingWidth = scaler.scale(44).clamp(60.0, double.infinity);
     final widths = [44.0, existingWidth, 44.0];
+    const countLabels = ['New', 'Existing', 'Total'];
 
     return LayoutBuilder(
       builder: (context, box) {
         final wide = box.maxWidth >= scaler.scale(460);
+        final showColumns = box.maxWidth >= scaler.scale(240);
         final inset = wide ? 20.0 : 16.0;
+
+        List<Widget> staffCells(ReportStaff staff) {
+          final activity = _StaffClientActivity(
+            staff: staff,
+            fraction: staff.total / top,
+            inline: wide,
+          );
+          final counts = [
+            _count(
+              theme,
+              staff.newClients,
+              color: Dt.newGreen(theme.brightness),
+            ),
+            _count(
+              theme,
+              staff.existingClients,
+              color: Dt.existingBlue(theme.brightness),
+            ),
+            _count(theme, staff.total, bold: true),
+          ];
+          if (showColumns) return [activity, ...counts];
+
+          return [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 8,
+              children: [
+                activity,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 8,
+                  children: [
+                    for (var i = 0; i < counts.length; i++)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(countLabels[i], style: head),
+                            counts[i],
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ];
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (seen.isEmpty)
               const _Note('No clients logged yet.')
             else ...[
-              _Row(
-                header: true,
-                widths: widths,
-                horizontalPadding: inset,
-                cells: [
-                  Text('Staff', style: head),
-                  Text('New', style: head),
-                  Text('Existing', style: head),
-                  Text('Total', style: head),
-                ],
-              ),
+              if (showColumns)
+                _Row(
+                  header: true,
+                  widths: widths,
+                  horizontalPadding: inset,
+                  cells: [
+                    Text('Staff', style: head),
+                    for (final label in countLabels) Text(label, style: head),
+                  ],
+                ),
               for (final (i, staff) in seen.indexed)
                 _Row(
                   last: i == seen.length - 1,
                   widths: widths,
                   horizontalPadding: inset,
                   onTap: () => showStaffProfile(context, staff.staffId),
-                  cells: [
-                    _StaffClientActivity(
-                      staff: staff,
-                      fraction: staff.total / top,
-                      inline: wide,
-                    ),
-                    _count(
-                      theme,
-                      staff.newClients,
-                      color: Dt.newGreen(theme.brightness),
-                    ),
-                    _count(
-                      theme,
-                      staff.existingClients,
-                      color: Dt.existingBlue(theme.brightness),
-                    ),
-                    _count(theme, staff.total, bold: true),
-                  ],
+                  cells: staffCells(staff),
                 ),
             ],
             if (notYet.isNotEmpty)
