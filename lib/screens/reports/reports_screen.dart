@@ -811,6 +811,17 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final heading = Text(title, style: theme.textTheme.titleMedium);
+    final trailingContent =
+        trailingWidget ??
+        (trailing == null
+            ? null
+            : Text(
+                trailing!,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ));
     return FadeSlideIn(
       child: Container(
         clipBehavior: Clip.antiAlias,
@@ -829,21 +840,27 @@ class _Panel extends StatelessWidget {
                   bottom: BorderSide(color: scheme.outlineVariant),
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(title, style: theme.textTheme.titleMedium),
-                  ),
-                  if (trailing != null)
-                    Text(
-                      trailing!,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+              child: trailingContent == null
+                  ? heading
+                  : LayoutBuilder(
+                      builder: (context, box) {
+                        if (box.maxWidth <
+                            MediaQuery.textScalerOf(context).scale(280)) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 4,
+                            children: [heading, trailingContent],
+                          );
+                        }
+                        return Row(
+                          spacing: 12,
+                          children: [
+                            Expanded(child: heading),
+                            trailingContent,
+                          ],
+                        );
+                      },
                     ),
-                  ?trailingWidget,
-                ],
-              ),
             ),
             child,
           ],
@@ -895,6 +912,7 @@ class _Row extends StatelessWidget {
     this.header = false,
     this.last = false,
     this.onTap,
+    this.horizontalPadding = 20,
   });
 
   final List<Widget> cells;
@@ -902,12 +920,16 @@ class _Row extends StatelessWidget {
   final bool header;
   final bool last;
   final VoidCallback? onTap;
+  final double horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final row = Container(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: header ? 8 : 9),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: header ? 8 : 9,
+      ),
       decoration: BoxDecoration(
         border: last
             ? null

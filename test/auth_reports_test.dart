@@ -552,6 +552,57 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Quick view aligns staff activity bars and adapts to large text',
+    (tester) async {
+      final day = quickDay();
+      saveOn(day, 'Joy', 3, 2);
+      saveOn(day, 'Dennis', 0, 1);
+      db.raw.execute('UPDATE staff SET name = ? WHERE id = ?', [
+        'Dennis Example-Surname',
+        staffId('Dennis'),
+      ]);
+      await pumpApp(tester);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      final card = find.byKey(const ValueKey('quick-client-activity'));
+      Finder label(String text) =>
+          find.descendant(of: card, matching: find.text(text));
+      final bars = find.descendant(of: card, matching: find.byType(ClipRRect));
+      final firstName = label('Joy');
+      final secondName = label('Dennis Example-Surname');
+
+      expect(bars, findsNWidgets(2));
+      expect(tester.getTopLeft(bars.first).dx, tester.getTopLeft(bars.last).dx);
+      expect(tester.getSize(bars.first).width, tester.getSize(bars.last).width);
+      expect(
+        tester.getTopLeft(bars.first).dx,
+        greaterThan(tester.getTopLeft(firstName).dx),
+      );
+
+      tester.view.physicalSize = const Size(320, 680);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(tester.getTopLeft(bars.first).dx, tester.getTopLeft(firstName).dx);
+      expect(tester.getTopLeft(bars.last).dx, tester.getTopLeft(secondName).dx);
+      expect(
+        tester.getTopLeft(bars.last).dy,
+        greaterThan(tester.getBottomLeft(secondName).dy),
+      );
+
+      final noClients = label('No clients yet');
+      final names = find.descendant(
+        of: card,
+        matching: find.textContaining('Ian'),
+      );
+      expect(
+        tester.getTopLeft(names).dy,
+        greaterThan(tester.getBottomLeft(noClients).dy),
+      );
+    },
+  );
+
   testWidgets('Details: week chart, staff-by-day grid, and admin edit link', (
     tester,
   ) async {

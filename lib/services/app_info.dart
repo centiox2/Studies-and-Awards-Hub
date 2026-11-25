@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart'
 /// pubspec.yaml (a test checks), so Settings, the "What's new" window and
 /// the installers all say the same.
 abstract final class AppInfo {
-  static const version = '1.9.15';
+  static const version = '1.9.16';
 
   /// Show "What's new" after an update (the real app only; tests leave it
   /// off so it never covers the screen under test).
@@ -39,6 +39,9 @@ abstract final class AppInfo {
 
   /// Newest first.
   static const releases = <Release>[
+    Release('1.9.16', 'November 2026', [
+      'The Quick view staff activity card aligns the bars and gives names more room on small screens.',
+    ]),
     Release('1.9.15', 'November 2026', [
       'Quick View and Detailed report share the earlier report toolbar layout.',
       'Open reports stay in place while you read. Use Refresh reports to check for new reports.',

@@ -233,7 +233,10 @@ class _QuickView extends ConsumerWidget {
           ? const _Empty(period: ReportPeriod.day)
           : holiday
           ? const _Note('Holiday — the whole team is off.')
-          : _WhoToday(report: today),
+          : _WhoToday(
+              key: const ValueKey('quick-client-activity'),
+              report: today,
+            ),
     );
 
     final weekPanel = _Panel(
@@ -455,7 +458,7 @@ class _LiveHeader extends StatelessWidget {
 /// Everyone working today, most clients first, then who hasn't logged a
 /// client yet and who's off.
 class _WhoToday extends StatelessWidget {
-  const _WhoToday({required this.report});
+  const _WhoToday({super.key, required this.report});
 
   final Report report;
 
@@ -469,74 +472,108 @@ class _WhoToday extends StatelessWidget {
     final off = report.staff.where((s) => s.daysOff > 0).toList();
     final top = seen.isEmpty ? 0 : seen.first.total;
     final head = _headStyle(theme);
-    const widths = [44.0, 60.0, 44.0];
+    final scaler = MediaQuery.textScalerOf(context);
+    final existingWidth = scaler.scale(44).clamp(60.0, double.infinity);
+    final widths = [44.0, existingWidth, 44.0];
 
-    String names(List<ReportStaff> list) => list.map((s) => s.name).join(', ');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (seen.isEmpty)
-          const _Note('No clients logged yet.')
-        else ...[
-          _Row(
-            header: true,
-            widths: widths,
-            cells: [
-              Text('Staff', style: head),
-              Text('New', style: head),
-              Text('Existing', style: head),
-              Text('Total', style: head),
-            ],
-          ),
-          for (var i = 0; i < seen.length; i++)
-            _Row(
-              last: i == seen.length - 1 && notYet.isEmpty && off.isEmpty,
-              widths: widths,
-              onTap: () => showStaffProfile(context, seen[i].staffId),
-              cells: [
-                Row(
-                  children: [
-                    Flexible(
-                      flex: 2,
-                      child: Text(
-                        seen[i].name,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+    return LayoutBuilder(
+      builder: (context, box) {
+        final wide = box.maxWidth >= scaler.scale(460);
+        final inset = wide ? 20.0 : 16.0;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (seen.isEmpty)
+              const _Note('No clients logged yet.')
+            else ...[
+              _Row(
+                header: true,
+                widths: widths,
+                horizontalPadding: inset,
+                cells: [
+                  Text('Staff', style: head),
+                  Text('New', style: head),
+                  Text('Existing', style: head),
+                  Text('Total', style: head),
+                ],
+              ),
+              for (final (i, staff) in seen.indexed)
+                _Row(
+                  last: i == seen.length - 1,
+                  widths: widths,
+                  horizontalPadding: inset,
+                  onTap: () => showStaffProfile(context, staff.staffId),
+                  cells: [
+                    _StaffClientActivity(
+                      staff: staff,
+                      fraction: staff.total / top,
+                      inline: wide,
                     ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 16),
-                        child: _Bar(fraction: seen[i].total / top),
-                      ),
+                    _count(
+                      theme,
+                      staff.newClients,
+                      color: Dt.newGreen(theme.brightness),
                     ),
+                    _count(
+                      theme,
+                      staff.existingClients,
+                      color: Dt.existingBlue(theme.brightness),
+                    ),
+                    _count(theme, staff.total, bold: true),
                   ],
                 ),
-                _count(
-                  theme,
-                  seen[i].newClients,
-                  color: Dt.newGreen(theme.brightness),
-                ),
-                _count(
-                  theme,
-                  seen[i].existingClients,
-                  color: Dt.existingBlue(theme.brightness),
-                ),
-                _count(theme, seen[i].total, bold: true),
-              ],
-            ),
+            ],
+            if (notYet.isNotEmpty)
+              _NameGroup(
+                label: 'No clients yet',
+                staff: notYet,
+                inset: inset,
+                inline: wide,
+              ),
+            if (off.isNotEmpty)
+              _NameGroup(label: 'Off', staff: off, inset: inset, inline: wide),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StaffClientActivity extends StatelessWidget {
+  const _StaffClientActivity({
+    required this.staff,
+    required this.fraction,
+    required this.inline,
+  });
+
+  final ReportStaff staff;
+  final double fraction;
+  final bool inline;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = Text(
+      staff.name,
+      style: Theme.of(context).textTheme.bodyMedium
+          ?.copyWith(fontWeight: FontWeight.w500),
+    );
+    final bar = _Bar(fraction: fraction);
+    if (inline) {
+      return Row(
+        children: [
+          Expanded(flex: 3, child: name),
+          const SizedBox(width: 16),
+          Expanded(flex: 2, child: bar),
+          const SizedBox(width: 12),
         ],
-        if (notYet.isNotEmpty)
-          _NameGroup(
-            label: 'No clients yet',
-            names: names(notYet),
-            last: off.isEmpty,
-          ),
-        if (off.isNotEmpty) _NameGroup(label: 'Off', names: names(off)),
-      ],
+      );
+    }
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [name, const SizedBox(height: 6), bar],
+      ),
     );
   }
 }
@@ -544,19 +581,26 @@ class _WhoToday extends StatelessWidget {
 class _NameGroup extends StatelessWidget {
   const _NameGroup({
     required this.label,
-    required this.names,
-    this.last = true,
+    required this.staff,
+    required this.inset,
+    required this.inline,
   });
 
   final String label;
-  final String names;
-  final bool last;
+  final List<ReportStaff> staff;
+  final double inset;
+  final bool inline;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final heading = Text(label, style: _headStyle(theme));
+    final names = Text(
+      staff.map((person) => person.name).join(', '),
+      style: theme.textTheme.bodySmall?.copyWith(color: Dt.textMuted(theme)),
+    );
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      padding: EdgeInsets.symmetric(horizontal: inset, vertical: 10),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
@@ -564,20 +608,21 @@ class _NameGroup extends StatelessWidget {
           ),
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 110, child: Text(label, style: _headStyle(theme))),
-          Expanded(
-            child: Text(
-              names,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Dt.textMuted(theme),
-              ),
+      child: inline
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: MediaQuery.textScalerOf(context).scale(110),
+                  child: heading,
+                ),
+                Expanded(child: names),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [heading, const SizedBox(height: 4), names],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
