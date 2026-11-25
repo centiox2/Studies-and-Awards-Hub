@@ -21,7 +21,8 @@ create function vault.create_secret(text,text,text default null) returns uuid la
 create function net.http_post(url text,headers jsonb,body jsonb,timeout_milliseconds integer)
  returns bigint language sql as $$select 1::bigint$$;
 create function cron.schedule(text,text,text) returns bigint language sql as $$select 1::bigint$$;
-create table cron.job(jobname text);
+create table cron.job(jobname text, jobid bigint generated always as identity);
+create table cron.job_run_details(jobid bigint, start_time timestamptz, end_time timestamptz, status text);
 create function cron.unschedule(text) returns boolean language sql as $$select true$$;
 create type extensions.http_response as (status integer, content text);
 `);
@@ -34,6 +35,7 @@ const scalar = async (sql, args = []) =>
 await db.exec(`
 insert into private.app_users(username,full_name,role,hash,must_change,active,pages)
 values
+ ('owner','Owner','admin',extensions.crypt('password1',extensions.gen_salt('bf',10)),false,true,null),
  ('restricted','Restricted','team',extensions.crypt('password1',extensions.gen_salt('bf',10)),false,true,'{}'),
  ('assigned','Assigned','team',extensions.crypt('password1',extensions.gen_salt('bf',10)),false,true,null),
  ('disabled','Disabled','team',extensions.crypt('password1',extensions.gen_salt('bf',10)),false,false,null);
@@ -44,6 +46,32 @@ const login = (name, password) =>
   scalar("select public.user_login($1,$2,false)", [name, password]);
 const restricted = (await login("restricted", "password1")).token;
 const assigned = (await login("assigned", "password1")).token;
+const owner = (await login("owner", "password1")).token;
+await assert.rejects(
+  db.query("select public.admin_diagnostics($1)", [assigned]),
+  (error) => error.code === "42501",
+);
+await assert.rejects(db.query("select public.admin_diagnostics($1)", ["invalid"]));
+await db.exec(`
+  insert into private.ai_summary_jobs(summary_date,source,status,lease_until,error_code,input_snapshot)
+    values(private.today(),'manual','failed',now(),'gemini_quota_exceeded','{"client":"secret client"}'),
+          (private.today(),'scheduled','queued',now()-interval '1 minute',null,null);
+  update private.airtable_state set last_run_at=now(), last_error='airtable_empty: private server details';
+  insert into cron.job(jobname) values ('daily-ai-summary');
+  insert into cron.job_run_details(jobid,start_time,end_time,status)
+    select jobid,now()-interval '1 second',now(),'succeeded' from cron.job;
+`);
+const serverDiagnostics = await scalar("select public.admin_diagnostics($1)", [owner]);
+assert(serverDiagnostics.some((event) =>
+  event.operation === "ai_report" && event.code === "gemini_quota_exceeded"));
+assert(serverDiagnostics.some((event) =>
+  event.operation === "ai_report" && event.status === "expired"));
+assert(serverDiagnostics.some((event) =>
+  event.operation === "airtable_sync" && event.code === "airtable_empty"));
+assert(serverDiagnostics.some((event) =>
+  event.operation === "schedule" && event.elapsed_ms === 1000));
+assert(!JSON.stringify(serverDiagnostics).includes("secret client"));
+assert(!JSON.stringify(serverDiagnostics).includes("private server details"));
 assert.equal(
   await scalar("select public.ai_summary_access($1)", [restricted]),
   false,

@@ -4,6 +4,7 @@ import 'package:supabase/supabase.dart';
 
 import '../../config/cloud_config.dart';
 import '../../models/app_user.dart';
+import '../app_diagnostic_log.dart';
 import 'cloud_api.dart';
 
 /// [CloudApi] on Supabase: database functions for reading, pushing and the
@@ -83,18 +84,33 @@ class SupabaseCloudApi implements CloudApi {
   };
 
   Future<T> _call<T>(String fn, [Map<String, Object?>? params]) async {
+    final trace = AppDiagnosticLog.request(fn);
     try {
       final reply = await _client
           .rpc(fn, params: params)
           .timeout(_long.contains(fn) ? _longTimeout : _timeout);
-      return reply as T;
+      final value = reply as T;
+      trace?.finish();
+      return value;
     } on TypeError catch (e) {
+      trace?.finish(failure: 'unexpected_response');
       throw CloudException('other', 'Unexpected answer from $fn: $e');
     } on PostgrestException catch (e) {
-      // The function isn't there: the online database hasn't had this
-      // version's update (supabase/migrations) applied yet.
-      if (e.code == 'PGRST202') throw CloudException('needs_update', e.message);
-      throw CloudException(codeOf(e.message), e.message);
+      // PGRST202 means this database lacks the requested migration.
+      final code = e.code == 'PGRST202' ? 'needs_update' : codeOf(e.message);
+      trace?.finish(
+        failure: e.message.contains('DELETE requires a WHERE clause')
+            ? 'delete_requires_filter'
+            : code,
+        serverCode: e.code,
+      );
+      throw CloudException(code, e.message);
+    } on TimeoutException {
+      trace?.finish(failure: 'timeout');
+      rethrow;
+    } catch (error) {
+      trace?.finish(failure: error.runtimeType.toString());
+      rethrow;
     }
   }
 
@@ -182,6 +198,7 @@ class SupabaseCloudApi implements CloudApi {
           ),
         )
         .subscribe((status, _) {
+          AppDiagnosticLog.record(DiagnosticEvent.realtime, status.name);
           _connection.add(status == RealtimeSubscribeStatus.subscribed);
         });
     return _changes.stream;

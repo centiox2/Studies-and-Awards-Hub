@@ -148,6 +148,7 @@ void main() {
     (AppTab.settings, 'settings-ai', ['Team']),
     (AppTab.aiSummary, 'ai-detailed-report', ['Detailed report']),
     (AppTab.settings, 'settings-about', ['About']),
+    (AppTab.settings, 'settings-diagnostics', ['Diagnostics']),
     (AppTab.dailyReports, 'daily-submissions', ['My submissions']),
     (AppTab.todo, 'todo-history', ['History']),
     (AppTab.applications, 'application-details', ['Brian Sample']),

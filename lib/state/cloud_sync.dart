@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/cloud_config.dart';
+import '../services/app_diagnostic_log.dart';
 import '../services/app_info.dart';
 import '../services/cloud/cloud_api.dart';
 import '../services/cloud/supabase_cloud_api.dart';
@@ -247,6 +248,8 @@ class CloudSyncController extends Notifier<CloudSyncState> {
     }
     _connecting = true;
     _again = false;
+    final elapsed = Stopwatch()..start();
+    AppDiagnosticLog.record(DiagnosticEvent.syncChanged, 'download_started');
     try {
       final claimed = _accounts
           ? (await api.usersStatus()) == 'ready'
@@ -259,6 +262,13 @@ class CloudSyncController extends Notifier<CloudSyncState> {
           : false;
       if (!ref.mounted) return;
       if (changed) _bumpFromRemote();
+      AppDiagnosticLog.syncCompleted(
+        operation: read == null ? 'checked_connection' : 'download',
+        elapsed: elapsed.elapsed,
+        pending: engine.pending,
+        held: engine.heldBack.length,
+        changed: changed,
+      );
       state = state.copyWith(
         phase: SyncPhase.live,
         claimed: claimed,
@@ -269,7 +279,11 @@ class CloudSyncController extends Notifier<CloudSyncState> {
       );
     } on CloudException catch (e) {
       _refused(e);
-    } catch (e) {
+    } catch (e, stack) {
+      AppDiagnosticLog.recordError(
+        DiagnosticEvent.syncFailed,
+        AppDiagnosticLog.describeError(e, stack),
+      );
       if (ref.mounted) {
         state = state.copyWith(
           phase: SyncPhase.offline,
@@ -301,9 +315,17 @@ class CloudSyncController extends Notifier<CloudSyncState> {
       await _connect();
       return;
     }
+    final elapsed = Stopwatch()..start();
+    AppDiagnosticLog.record(DiagnosticEvent.syncChanged, 'upload_started');
     try {
       await engine.flush(token);
       if (!ref.mounted) return;
+      AppDiagnosticLog.syncCompleted(
+        operation: 'upload',
+        elapsed: elapsed.elapsed,
+        pending: engine.pending,
+        held: engine.heldBack.length,
+      );
       state = state.copyWith(
         phase: SyncPhase.live,
         lastSynced: DateTime.now(),
@@ -313,7 +335,11 @@ class CloudSyncController extends Notifier<CloudSyncState> {
       );
     } on CloudException catch (e) {
       _refused(e);
-    } catch (_) {
+    } catch (e, stack) {
+      AppDiagnosticLog.recordError(
+        DiagnosticEvent.syncFailed,
+        AppDiagnosticLog.describeError(e, stack),
+      );
       if (ref.mounted) {
         state = state.copyWith(
           phase: SyncPhase.offline,
@@ -335,6 +361,7 @@ class CloudSyncController extends Notifier<CloudSyncState> {
   void _bumpFromRemote() => ref.read(dataVersionProvider.notifier).bump();
 
   void _refused(CloudException e) {
+    AppDiagnosticLog.record(DiagnosticEvent.syncFailed, e.code);
     if (!ref.mounted) return;
     if (_accounts && e.code == 'not_signed_in') {
       // Ended online: signed out elsewhere, a new role or password set by

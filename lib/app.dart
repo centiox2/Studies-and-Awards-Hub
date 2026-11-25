@@ -138,6 +138,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void initState() {
     super.initState();
     _todoReminder.start();
+    AppDiagnosticLog.record(DiagnosticEvent.pageOpened, _activeTab.name);
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
       // The to-do list: things given to you arrive, now and then.
       if (++_ticks % 2 == 0) ref.read(todoListProvider.notifier).refresh();
@@ -590,6 +591,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ) {
       if (before != after) {
         AppDiagnosticLog.record(DiagnosticEvent.syncChanged, after.name);
+      }
+    });
+    ref.listen(sessionProvider, (before, after) {
+      if (before != after) {
+        AppDiagnosticLog.record(
+          DiagnosticEvent.sessionChanged,
+          after == null ? 'signed_out' : 'signed_in',
+        );
       }
     });
     // A new notification: say so, wherever the person is.

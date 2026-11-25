@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../../design/app_theme.dart';
 import '../../models/staff.dart';
 import '../../repositories/auth_repository.dart';
+import '../../services/app_diagnostic_log.dart';
 import '../../services/auto_backup.dart';
 import '../../services/daily_reports_service.dart' show reportsChangedProvider;
 import '../../services/export_actions.dart';
@@ -28,6 +29,7 @@ import 'ai_summary_settings.dart';
 import 'airtable_section.dart';
 import 'import_dialog.dart';
 import 'departments_section.dart';
+import 'diagnostics_section.dart';
 import 'users_section.dart';
 import 'navigation_section.dart';
 
@@ -511,6 +513,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _Category('team', 'Team', Icons.groups_2_outlined, team),
         _Category('data', 'Data', Icons.storage_outlined, data),
       ],
+      _Category('diagnostics', 'Diagnostics', Icons.receipt_long_outlined, [
+        DiagnosticsSection(serverAvailable: accounts && admin),
+      ]),
       _Category('about', 'About', Icons.info_outline, [
         AboutSection(online: accounts, admin: admin),
       ]),
@@ -539,6 +544,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final side = viewport.maxWidth >= 900;
         void pick(_Category cat) => setState(() {
           _category = cat.id;
+          AppDiagnosticLog.record(DiagnosticEvent.settingsOpened, cat.id);
           ref.read(uiPrefProvider).set('settings.category', cat.id);
           if (_scroll.hasClients) _scroll.jumpTo(0);
         });

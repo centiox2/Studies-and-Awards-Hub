@@ -11,6 +11,7 @@ import '../repositories/report_repository.dart';
 import '../repositories/revenue_repository.dart';
 import '../database/database.dart';
 import '../repositories/week_repository.dart';
+import '../services/app_diagnostic_log.dart';
 import 'providers.dart';
 
 export '../models/app_user.dart';
@@ -611,7 +612,7 @@ class AppActions {
   /// new week, or throws [StateError] if it already exists.
   Week createWeek(DateTime anyDay) {
     final week = _ref.read(weekRepositoryProvider).createWeekFor(anyDay);
-    _touch();
+    _touch('week_created');
     return week;
   }
 
@@ -636,7 +637,7 @@ class AppActions {
       newClients: newClients,
       existingClients: existingClients,
     );
-    _saved();
+    _saved('client_count_saved');
   }
 
   /// Marks (or unmarks) one staff member off on one working day. Numbers
@@ -649,7 +650,7 @@ class AppActions {
     _ref
         .read(timeOffRepositoryProvider)
         .setDay(dayId: dayId, staffId: staffId, off: off);
-    _touch();
+    _touch('staff_day_off_saved');
   }
 
   /// Marks several staff on or off for one day at once ([changes] maps
@@ -662,7 +663,7 @@ class AppActions {
     _ref
         .read(timeOffRepositoryProvider)
         .setDayForStaff(dayId: dayId, changes: changes);
-    _touch();
+    _touch('day_off_saved_for_staff');
   }
 
   /// Show / hide zeros: a display preference of this device only. It used
@@ -670,18 +671,21 @@ class AppActions {
   /// queued an upload and flipped every other device too.
   void toggleShowZeros() => _ref.read(showZerosProvider.notifier).toggle();
 
-  void _touch() => _ref.read(dataVersionProvider.notifier).bump();
+  void _touch(String operation) {
+    AppDiagnosticLog.record(DiagnosticEvent.localDataChanged, operation);
+    _ref.read(dataVersionProvider.notifier).bump();
+  }
 
   /// A change to client numbers: refresh, and record the save time.
-  void _saved() {
+  void _saved(String operation) {
     _ref.read(lastSavedProvider.notifier).markNow();
-    _touch();
+    _touch(operation);
   }
 
   /// Saves (or, when blank, removes) a day's note.
   void setDayNote(int dayId, String note) {
     _ref.read(dayNotesRepositoryProvider).setNote(dayId, note);
-    _touch();
+    _touch('day_note_saved');
   }
 
   // ---- Revenue -----------------------------------------------------------
@@ -696,7 +700,7 @@ class AppActions {
     final id = _ref
         .read(revenueRepositoryProvider)
         .add(day, amountCents, note: note, at: at, purpose: purpose);
-    _touch();
+    _touch('revenue_added');
     return id;
   }
 
@@ -706,7 +710,7 @@ class AppActions {
     for (final id in ids) {
       repo.delete(id);
     }
-    _touch();
+    _touch('revenue_batch_removed');
   }
 
   void updateRevenue(
@@ -725,33 +729,33 @@ class AppActions {
           at: at,
           purpose: purpose,
         );
-    _touch();
+    _touch('revenue_updated');
   }
 
   void deleteRevenue(int id) {
     _ref.read(revenueRepositoryProvider).delete(id);
-    _touch();
+    _touch('revenue_deleted');
   }
 
   void restoreRevenue(RevenueEntry entry) {
     _ref.read(revenueRepositoryProvider).restore(entry);
-    _touch();
+    _touch('revenue_restored');
   }
 
   void setRevenuePurposes(List<String> purposes) {
     _ref.read(appSettingsRepositoryProvider).revenuePurposes = purposes;
-    _touch();
+    _touch('payment_purposes_saved');
   }
 
   void setCurrency(String currency) {
     _ref.read(appSettingsRepositoryProvider).currency = currency;
-    _touch();
+    _touch('currency_saved');
   }
 
   /// Sets the daily client target; null or 0 clears it.
   void setDailyTarget(int? target) {
     _ref.read(appSettingsRepositoryProvider).dailyTarget = target;
-    _touch();
+    _touch('daily_target_saved');
   }
 
   /// Repeats last week's time off on the same weekdays of [weekId] — for
@@ -791,7 +795,7 @@ class AppActions {
       timeOff.setDayForStaff(dayId: target.id, changes: changes);
       marked += changes.length;
     }
-    if (marked > 0) _touch();
+    if (marked > 0) _touch('time_off_copied');
     return marked;
   }
 
@@ -818,7 +822,7 @@ class AppActions {
           newClients: isNew ? restored : _currentNew(dayId, staffId),
           existingClients: isNew ? _currentExisting(dayId, staffId) : restored,
         );
-    _saved();
+    _saved('client_count_undone');
     return restored;
   }
 
@@ -857,7 +861,7 @@ class AppActions {
           newClients: isNew ? previous : _currentNew(dayId, staffId),
           existingClients: isNew ? _currentExisting(dayId, staffId) : previous,
         );
-    _saved();
+    _saved('client_count_undone');
     return (dayId: dayId, staffId: staffId, isNew: isNew, value: previous);
   }
 }

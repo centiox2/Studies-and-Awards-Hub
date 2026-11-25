@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../state/providers.dart';
+import 'app_diagnostic_log.dart';
 import 'auto_backup_store.dart';
 
 export 'auto_backup_store.dart' show AutoBackupEntry;
@@ -112,10 +113,16 @@ class AutoBackupController extends Notifier<AutoBackupState> {
     await _ready;
     if (!_store.enabled) return false;
     var ok = true;
+    AppDiagnosticLog.record(DiagnosticEvent.backupStarted);
     try {
       final result = ref.read(backupServiceProvider).backup();
       await _store.save(result.suggestedName, result.json);
-    } catch (_) {
+      AppDiagnosticLog.record(DiagnosticEvent.backupSaved);
+    } catch (e, stack) {
+      AppDiagnosticLog.recordError(
+        DiagnosticEvent.backupFailed,
+        AppDiagnosticLog.describeError(e, stack),
+      );
       ok = false; // never crash the app over a background backup
     }
     await _refresh();

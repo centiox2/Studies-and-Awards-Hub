@@ -30,7 +30,12 @@ Future<void> main() async {
   // an update.
   await AppDiagnosticLog.initialize();
   ErrorReporter.install();
+  WidgetsBinding.instance.addObserver(_DiagnosticLifecycle());
   AppDiagnosticLog.record(DiagnosticEvent.startup, AppInfo.platform);
+  AppDiagnosticLog.record(
+    DiagnosticEvent.syncChanged,
+    CloudConfig.active ? 'configured' : 'offline_build',
+  );
   AppInfo.showWhatsNew = true;
   // Recorded with each revenue change, so the history says where it came
   // from.
@@ -87,6 +92,23 @@ Future<void> main() async {
       child: const ClientTrackerApp(),
     ),
   );
+}
+
+class _DiagnosticLifecycle extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    AppDiagnosticLog.record(DiagnosticEvent.lifecycle, state.name);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      AppDiagnosticLog.flush();
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    AppDiagnosticLog.record(DiagnosticEvent.memoryPressure);
+  }
 }
 
 /// Shown if the database cannot be opened at all. Points the user at the
@@ -146,9 +168,7 @@ class _StartupErrorApp extends StatelessWidget {
                   icon: const Icon(Icons.copy),
                   onPressed: () => Clipboard.setData(
                     ClipboardData(
-                      text: AppDiagnosticLog.recent
-                          .map((entry) => entry.asText)
-                          .join('\n\n'),
+                      text: AppDiagnosticLog.copyText(AppDiagnosticLog.recent),
                     ),
                   ),
                 ),
