@@ -332,7 +332,7 @@ void main() {
         find.text('Daily company overview for 2026-11-18.'),
         findsOneWidget,
       );
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byKey(const ValueKey('report-date-picker')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('17 Nov 2026').last);
       await tester.pumpAndSettle();
@@ -343,6 +343,96 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  for (final size in [
+    const Size(390, 844),
+    const Size(820, 1000),
+    const Size(1440, 900),
+  ]) {
+    testWidgets(
+      'the report toolbar stays anchored across views and report dates at $size',
+      (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+
+        final fixture = templateFixture();
+        final reports = fixture['summaries'] as List;
+        fixture['summaries'] = <Object?>[...reports, reports.first, null];
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              aiSummaryAccessProvider.overrideWith((ref) async => true),
+              aiSummariesProvider.overrideWith((ref) async => fixture),
+            ],
+            child: const MaterialApp(home: Scaffold(body: AiSummaryScreen())),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final picker = find.byKey(const ValueKey('report-date-picker'));
+        final details = find.byKey(const ValueKey('report-detailed-view'));
+        final initialPosition = tester.getTopLeft(picker);
+        final initialElement = tester.element(picker);
+        expect(find.text('Today at a Glance'), findsOneWidget);
+
+        await tester.tap(details);
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(picker), initialPosition);
+        expect(find.text('Today at a Glance'), findsNothing);
+
+        await tester.tap(picker);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('17 Nov 2026').last);
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(picker), initialPosition);
+        expect(tester.element(picker), same(initialElement));
+        expect(tester.widget<ChoiceChip>(details).selected, isTrue);
+        expect(find.text('1. Weekly tracker'), findsOneWidget);
+
+        await tester.tap(picker);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('18 Nov 2026').last);
+        await tester.pumpAndSettle();
+        expect(tester.widget<ChoiceChip>(details).selected, isTrue);
+        expect(tester.getTopLeft(picker), initialPosition);
+        expect(find.text('1. Weekly tracker'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('requesting a new report preserves the archive date', (
+    tester,
+  ) async {
+    final data = templateFixture();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          aiSummaryAccessProvider.overrideWith((ref) async => true),
+          aiSummariesProvider.overrideWith((ref) async => {...data}),
+          aiSummaryServiceProvider.overrideWithValue(
+            AiSummaryService((method, [_]) async {
+              expect(method, 'ai_summary_generate');
+              return {'status': 'queued'};
+            }),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: AiSummaryScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final picker = find.byKey(const ValueKey('report-date-picker'));
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('17 Nov 2026').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('generate-ai-report')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<DropdownButton<String>>(picker).value, '2026-11-17');
+    expect(find.text('Daily company overview for 2026-11-17.'), findsOneWidget);
+  });
+
   testWidgets('saved Gemini key is confirmed after saving and reopening', (
     tester,
   ) async {
@@ -641,7 +731,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Quick View'), findsOneWidget);
-      expect(find.text('KSh 1,200.50'), findsOneWidget);
+      expect(find.text('KSh 1,200.50', skipOffstage: false), findsOneWidget);
       final details = find.byKey(const ValueKey('report-detailed-view'));
       await tester.ensureVisible(details);
       await tester.pumpAndSettle();
@@ -655,10 +745,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(index.hitTestable(), findsOneWidget);
       expect(find.text('Taylor Example'), findsOneWidget);
+      expect(find.textContaining('Work items updated'), findsOneWidget);
       expect(find.text('Example Editor'), findsNothing);
       expect(find.text('Daily reports submitted'), findsNothing);
       expect(find.text('Reports submitted'), findsNothing);
       expect(find.text('Team to-do items completed'), findsNothing);
+      await tester.tap(find.byTooltip('Back to report controls'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('report-date-picker')).hitTestable(),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -668,11 +765,17 @@ void main() {
     tester.view.physicalSize = const Size(1280, 720);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    var reads = 0;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           aiSummaryAccessProvider.overrideWith((ref) async => true),
-          aiSummariesProvider.overrideWith((ref) async => templateFixture()),
+          aiSummariesProvider.overrideWith((ref) async {
+            final data = templateFixture();
+            final row = (data['summaries'] as List).first as Map;
+            (row['content']['template'] as Map)['meta'] = 'Refresh ${++reads}';
+            return data;
+          }),
         ],
         child: const MaterialApp(home: Scaffold(body: AiSummaryScreen())),
       ),
@@ -686,6 +789,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Sample Client').hitTestable(), findsOneWidget);
     expect(jump.hitTestable(), findsOneWidget);
+
+    final reader = tester.widget<SingleChildScrollView>(
+      find.byKey(const ValueKey('report-reading-column')),
+    );
+    final controller = reader.controller!;
+    final previousOffset = controller.offset;
+    expect(previousOffset, greaterThan(0));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AiSummaryScreen)),
+    );
+    container.invalidate(aiSummariesProvider);
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    expect(controller.offset, previousOffset);
+    expect(find.text('Sample Client').hitTestable(), findsOneWidget);
+
+    final picker = find.byKey(const ValueKey('report-date-picker'));
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('17 Nov 2026').last);
+    await tester.pumpAndSettle();
+    expect(controller.offset, 0);
   });
 
   testWidgets(

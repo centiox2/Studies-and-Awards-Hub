@@ -8,15 +8,9 @@ import '../../widgets/clarity.dart';
 /// A single readable report sheet. Sections use typography and dividers,
 /// rather than separate cards for every paragraph or number.
 class ReportDocument extends StatelessWidget {
-  const ReportDocument({
-    super.key,
-    required this.row,
-    required this.detailed,
-    required this.cutoffLabel,
-  });
+  const ReportDocument({super.key, required this.row, required this.detailed});
   final Map row;
   final bool detailed;
-  final String cutoffLabel;
   @override
   Widget build(BuildContext context) {
     final content = _map(row['content']);
@@ -112,11 +106,6 @@ class ReportDocument extends StatelessWidget {
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Data as of $cutoffLabel',
-                style: theme.textTheme.bodySmall?.copyWith(color: c.textMuted),
               ),
               divider(),
               heading('Key figures'),

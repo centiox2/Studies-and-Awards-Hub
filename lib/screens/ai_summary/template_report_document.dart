@@ -8,26 +8,31 @@ import '../../design/app_theme.dart';
 import '../../widgets/clarity.dart';
 
 /// A responsive report with a persistent index when the viewport has room.
-class TemplateReportDocument extends StatefulWidget {
-  const TemplateReportDocument({
+class ReportReader extends StatefulWidget {
+  const ReportReader({
     super.key,
     required this.template,
+    required this.reportDate,
     required this.detailed,
     required this.header,
+    this.fallback,
   });
 
-  final Map template;
+  final Map? template;
+  final String? reportDate;
   final bool detailed;
   final Widget header;
+  final Widget? fallback;
 
   @override
-  State<TemplateReportDocument> createState() => _TemplateReportDocumentState();
+  State<ReportReader> createState() => _ReportReaderState();
 }
 
-class _TemplateReportDocumentState extends State<TemplateReportDocument> {
-  final _scroll = ScrollController();
-  final _anchors = <String, GlobalKey>{};
+class _ReportReaderState extends State<ReportReader> {
+  final _scroll = ScrollController(keepScrollOffset: false);
+  Map<String, GlobalKey> _anchors = {};
   String? _active;
+  String? _jumpTarget;
 
   @override
   void initState() {
@@ -36,11 +41,12 @@ class _TemplateReportDocumentState extends State<TemplateReportDocument> {
   }
 
   @override
-  void didUpdateWidget(TemplateReportDocument oldWidget) {
+  void didUpdateWidget(ReportReader oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.detailed != widget.detailed ||
-        oldWidget.template['meta'] != widget.template['meta']) {
+        oldWidget.reportDate != widget.reportDate) {
       _active = null;
+      _jumpTarget = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _scroll.hasClients) _scroll.jumpTo(0);
       });
@@ -62,7 +68,11 @@ class _TemplateReportDocumentState extends State<TemplateReportDocument> {
   }
 
   void _updateIndex() {
-    if (!_scroll.hasClients || !widget.detailed) return;
+    if (_scroll.positions.length != 1 ||
+        _anchors.isEmpty ||
+        _jumpTarget != null) {
+      return;
+    }
     String? next;
     final position = _scroll.position;
     for (final title in _anchors.keys) {
@@ -76,14 +86,29 @@ class _TemplateReportDocumentState extends State<TemplateReportDocument> {
     if (next != _active && mounted) setState(() => _active = next);
   }
 
-  void _jump(String title) {
+  Future<void> _jump(String title) async {
     final offset = _offset(title);
     if (offset == null || !_scroll.hasClients) return;
     final target = (offset - 10).clamp(0.0, _scroll.position.maxScrollExtent);
+    setState(() {
+      _active = title;
+      _jumpTarget = title;
+    });
+    await _scrollTo(target);
+    if (mounted && _jumpTarget == title) {
+      _jumpTarget = null;
+      if (_scroll.hasClients && (_scroll.offset - target).abs() > 2) {
+        _updateIndex();
+      }
+    }
+  }
+
+  Future<void> _scrollTo(double target) async {
+    if (!_scroll.hasClients) return;
     if (MediaQuery.disableAnimationsOf(context)) {
       _scroll.jumpTo(target);
     } else {
-      _scroll.animateTo(
+      await _scroll.animateTo(
         target,
         duration: const Duration(milliseconds: 270),
         curve: Curves.easeOutCubic,
@@ -93,25 +118,25 @@ class _TemplateReportDocumentState extends State<TemplateReportDocument> {
 
   @override
   Widget build(BuildContext context) {
-    final quick = _blocks(widget.template['quick']);
-    final sections = widget.detailed
-        ? _sections(widget.template)
+    final template = widget.template;
+    final quick = _blocks(template?['quick']);
+    final sections = widget.detailed && template != null
+        ? _sections(template)
         : <String, List<Map>>{};
-    _anchors.removeWhere((title, _) => !sections.containsKey(title));
-    for (final title in sections.keys) {
-      _anchors.putIfAbsent(title, GlobalKey.new);
-    }
+    _anchors = {
+      for (final title in sections.keys) title: _anchors[title] ?? GlobalKey(),
+    };
     final active = sections.containsKey(_active)
         ? _active
         : sections.keys.firstOrNull;
 
     return LayoutBuilder(
       builder: (context, viewport) {
-        final pad = viewport.maxWidth >= 1080 ? 36.0 : clarityHPad(context);
+        final scaler = MediaQuery.textScalerOf(context);
         final wide =
-            widget.detailed &&
-            viewport.maxWidth >= MediaQuery.textScalerOf(context).scale(760) &&
-            viewport.maxHeight >= 460;
+            viewport.maxWidth >= scaler.scale(760) &&
+            viewport.maxHeight >= scaler.scale(460);
+        final pad = viewport.maxWidth >= 1080 ? 36.0 : clarityHPad(context);
         final colors = context.clarity;
         final header = Padding(
           padding: EdgeInsets.fromLTRB(
@@ -130,6 +155,29 @@ class _TemplateReportDocumentState extends State<TemplateReportDocument> {
               child: _SectionCard(title: entry.key, blocks: entry.value),
             ),
         ];
+        final document = switch (widget.fallback) {
+          final fallback? => fallback,
+          null when active != null => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: cards,
+          ),
+          null when widget.detailed => const Text(
+            'No detailed sections were recorded for this date.',
+          ),
+          null when quick.isEmpty => const Text(
+            'No quick-view figures were recorded for this date.',
+          ),
+          null => ClarityCard(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final block in quick)
+                  _ReportBlock(block: _quickBlock(block), compact: true),
+              ],
+            ),
+          ),
+        };
         if (wide) {
           return Center(
             child: ConstrainedBox(
@@ -144,75 +192,34 @@ class _TemplateReportDocumentState extends State<TemplateReportDocument> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(
-                            width: 222,
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.only(bottom: 18),
-                              child: ClarityCard(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    const Padding(
-                                      padding: EdgeInsets.fromLTRB(
-                                        10,
-                                        5,
-                                        10,
-                                        8,
-                                      ),
-                                      child: _SectionLabel('On this page'),
-                                    ),
-                                    for (final title in sections.keys)
-                                      TextButton(
-                                        key: ValueKey('report-jump-$title'),
-                                        style: TextButton.styleFrom(
-                                          alignment:
-                                              AlignmentDirectional.centerStart,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 9,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          foregroundColor: title == active
-                                              ? colors.accent
-                                              : colors.textSecondary,
-                                          backgroundColor: title == active
-                                              ? colors.accentSoft
-                                              : null,
-                                        ),
-                                        onPressed: () => _jump(title),
-                                        child: Semantics(
-                                          selected: title == active,
-                                          child: Text(
-                                            title,
-                                            style: TextStyle(
-                                              fontWeight: title == active
-                                                  ? FontWeight.w700
-                                                  : FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                          if (active != null) ...[
+                            SizedBox(
+                              width: 222,
+                              child: _DesktopIndex(
+                                titles: sections.keys,
+                                active: active,
+                                onSelect: _jump,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 22),
+                            const SizedBox(width: 22),
+                          ],
                           Expanded(
+                            key: const ValueKey('report-reader-viewport'),
                             child: SingleChildScrollView(
                               key: const ValueKey('report-reading-column'),
                               controller: _scroll,
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: cards,
-                              ),
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: active == null
+                                  ? Align(
+                                      alignment: AlignmentDirectional.topStart,
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 960,
+                                        ),
+                                        child: document,
+                                      ),
+                                    )
+                                  : document,
                             ),
                           ),
                         ],
@@ -230,89 +237,137 @@ class _TemplateReportDocumentState extends State<TemplateReportDocument> {
             child: child,
           ),
         );
-        if (active != null) {
-          return CustomScrollView(
-            key: const ValueKey('report-reading-column'),
-            controller: _scroll,
-            slivers: [
-              SliverToBoxAdapter(child: centered(header)),
+        return CustomScrollView(
+          key: const ValueKey('report-reading-column'),
+          controller: _scroll,
+          slivers: [
+            SliverToBoxAdapter(child: centered(header)),
+            if (active != null)
               PinnedHeaderSliver(
                 child: ColoredBox(
                   color: colors.bg,
                   child: centered(
                     Padding(
                       padding: EdgeInsets.fromLTRB(pad, 0, pad, 8),
-                      child: DropdownButton<String>(
-                        key: const ValueKey('report-section-index'),
-                        isExpanded: true,
-                        value: active,
-                        menuMaxHeight: 360,
-                        selectedItemBuilder: (context) => [
-                          for (final title in sections.keys)
-                            Align(
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text(
-                                'On this page · $title',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButton<String>(
+                              key: const ValueKey('report-section-index'),
+                              isExpanded: true,
+                              value: active,
+                              menuMaxHeight: 360,
+                              selectedItemBuilder: (context) => [
+                                for (final title in sections.keys)
+                                  Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Text(
+                                      viewport.maxWidth < scaler.scale(460)
+                                          ? title
+                                          : 'On this page · $title',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                              ],
+                              items: [
+                                for (final title in sections.keys)
+                                  DropdownMenuItem(
+                                    value: title,
+                                    child: Text(title),
+                                  ),
+                              ],
+                              onChanged: (title) {
+                                if (title != null) _jump(title);
+                              },
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'Back to report controls',
+                            icon: const Icon(Icons.vertical_align_top),
+                            onPressed: () => _scrollTo(0),
+                          ),
                         ],
-                        items: [
-                          for (final title in sections.keys)
-                            DropdownMenuItem(value: title, child: Text(title)),
-                        ],
-                        onChanged: (title) {
-                          if (title != null) _jump(title);
-                        },
                       ),
                     ),
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: centered(
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(pad, 5, pad, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: cards,
+            SliverToBoxAdapter(
+              child: centered(
+                Padding(
+                  padding: EdgeInsets.fromLTRB(pad, 5, pad, 16),
+                  child: SizedBox(width: double.infinity, child: document),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DesktopIndex extends StatelessWidget {
+  const _DesktopIndex({
+    required this.titles,
+    required this.active,
+    required this.onSelect,
+  });
+
+  final Iterable<String> titles;
+  final String active;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.clarity;
+    return SingleChildScrollView(
+      primary: false,
+      padding: const EdgeInsets.only(bottom: 18),
+      child: ClarityCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(10, 5, 10, 8),
+              child: _SectionLabel('On this page'),
+            ),
+            for (final title in titles)
+              TextButton(
+                key: ValueKey('report-jump-$title'),
+                style: TextButton.styleFrom(
+                  alignment: AlignmentDirectional.centerStart,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 9,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  foregroundColor: title == active
+                      ? colors.accent
+                      : colors.textSecondary,
+                  backgroundColor: title == active ? colors.accentSoft : null,
+                ),
+                onPressed: () => onSelect(title),
+                child: Semantics(
+                  selected: title == active,
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: title == active
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                   ),
                 ),
               ),
-            ],
-          );
-        }
-        return SingleChildScrollView(
-          key: const ValueKey('report-reading-column'),
-          controller: _scroll,
-          child: centered(
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                header,
-                Padding(
-                  padding: EdgeInsets.fromLTRB(pad, 0, pad, 16),
-                  child: ClarityCard(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final block in quick)
-                          _ReportBlock(
-                            block: _quickBlock(block),
-                            compact: true,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1016,6 +1071,62 @@ class _ReportTable extends StatelessWidget {
         final minWidth = headers.length < 3
             ? 0.0
             : scale.scale(76) * headers.length;
+        if (staff && minWidth > box.maxWidth) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final cells in rows)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: colors.borderSubtle),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${cells.firstOrNull ?? '—'}',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 5,
+                        children: [
+                          for (
+                            var i = 1;
+                            i < headers.length && i < cells.length;
+                            i++
+                          )
+                            Text.rich(
+                              TextSpan(
+                                text: '${headers[i]} ',
+                                children: [
+                                  TextSpan(
+                                    text: '${cells[i]}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: cells[i] == '0'
+                                          ? colors.textMuted
+                                          : colors.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colors.textMuted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        }
         final table = SizedBox(
           width: math.max(box.maxWidth, minWidth),
           child: Table(

@@ -7,7 +7,6 @@ import '../../services/ai_summary_service.dart';
 import '../../services/app_diagnostic_log.dart';
 import '../../services/cloud/cloud_api.dart';
 import '../../state/app_state.dart';
-import '../../widgets/clarity.dart';
 import '../../widgets/panels.dart';
 import 'report_document.dart';
 import 'template_report_document.dart';
@@ -18,11 +17,25 @@ String _reportDate(Object? raw) {
   return date == null ? value : DateFormat('d MMM y').format(date);
 }
 
-String _stamp(Object? raw) {
+String? _stamp(Object? raw) {
   final date = DateTime.tryParse('$raw');
-  return date == null
-      ? '$raw'
-      : '${DateFormat('d MMM y, HH:mm').format(date.toUtc().add(const Duration(hours: 3)))} Nairobi';
+  if (date == null) return null;
+  final nairobi = date.toUtc().add(const Duration(hours: 3));
+  return "${DateFormat('d MMM y, HH:mm').format(nairobi)} EAT";
+}
+
+Map<String, Map> _reports(Object? value) {
+  if (value is! List) return {};
+  final rows = <String, Map>{};
+  for (final row in value.whereType<Map>()) {
+    final date = row['summary_date'];
+    if (date is String &&
+        DateTime.tryParse(date) != null &&
+        row['content'] is Map) {
+      rows.putIfAbsent(date, () => row);
+    }
+  }
+  return rows;
 }
 
 class AiSummaryPreview extends ConsumerWidget {
@@ -53,8 +66,8 @@ class AiSummaryPreview extends ConsumerWidget {
               'Unable to load the summary. Open the summary page to retry.',
             ),
             data: (data) {
-              final rows = data['summaries'] as List? ?? [];
-              final latest = rows.firstOrNull as Map?;
+              final latest = _reports(data['summaries']).values.firstOrNull;
+              final brief = (latest?['content'] as Map?)?['brief'];
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -69,13 +82,17 @@ class AiSummaryPreview extends ConsumerWidget {
                       'Latest · ${_reportDate(latest['summary_date'])}',
                       style: Theme.of(context).textTheme.labelMedium,
                     ),
-                    const SizedBox(height: 8),
-                    Text('${(latest['content'] as Map)['brief']}'),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Data as of ${_stamp(latest['cutoff_at'])}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    if (brief is String && brief.trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(brief),
+                    ],
+                    if (_stamp(latest['cutoff_at']) case final cutoff?) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Data as of $cutoff',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ],
               );
@@ -94,18 +111,28 @@ class AiSummaryScreen extends ConsumerStatefulWidget {
 }
 
 class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
-  String? selected;
-  bool detailed = false;
+  String? _selectedDate;
+  bool _detailed = false;
+
   @override
   Widget build(BuildContext context) {
     final access = ref.watch(aiSummaryAccessProvider);
     if (!summaryAccessGranted(access)) {
-      return Center(
-        child: Text(
-          access.isLoading
-              ? 'Checking access…'
-              : 'Admin must assign AI summary access to your account.',
-        ),
+      return ReportReader(
+        template: null,
+        reportDate: null,
+        detailed: false,
+        header: const _ReportHeader(),
+        fallback: access.isLoading
+            ? const Text('Checking access…')
+            : access.hasError
+            ? _ReportNotice(
+                message: 'Unable to check report access.',
+                onRetry: () => ref.invalidate(aiSummaryAccessProvider),
+              )
+            : const Text(
+                'Admin must assign AI summary access to your account.',
+              ),
       );
     }
     ref.listen(aiSummariesProvider, (before, after) {
@@ -118,213 +145,214 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
         AppDiagnosticLog.record(DiagnosticEvent.reportFailed);
       }
     });
-    return ref
-        .watch(aiSummariesProvider)
-        .when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Unable to load AI summaries.'),
-                TextButton(
-                  onPressed: () => ref.invalidate(aiSummariesProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
-          data: (data) {
-            final rows = (data['summaries'] as List? ?? []).cast<Map>();
-            final row =
-                rows.where((r) => r['summary_date'] == selected).firstOrNull ??
-                rows.firstOrNull;
-            final content = row?['content'] as Map?;
-            final template = content?['template'];
-            final hasTemplate = template is Map && template['version'] == 1;
-            final header = _ReportHeader(
-              data: data,
-              rows: rows,
-              date: row?['summary_date']?.toString(),
-              meta: hasTemplate
-                  ? template['meta']?.toString()
-                  : row == null
-                  ? null
-                  : _stamp(row['cutoff_at']),
-              detailed: detailed,
-              hasTemplate: hasTemplate,
-              onView: (value) => setState(() => detailed = value),
-              onDate: (value) => setState(() => selected = value),
-              onRequested: () => setState(() => selected = null),
-            );
-            if (hasTemplate) {
-              return TemplateReportDocument(
-                template: template,
-                detailed: detailed,
-                header: header,
-              );
-            }
-            return ListView(
-              padding: EdgeInsets.fromLTRB(
-                clarityHPad(context),
-                20,
-                clarityHPad(context),
-                24,
+    final state = ref.watch(aiSummariesProvider);
+    final data = state.when(
+      data: (data) => data,
+      loading: () => null,
+      error: (_, _) => null,
+    );
+    final rows = _reports(data?['summaries']);
+    final date = rows.containsKey(_selectedDate)
+        ? _selectedDate
+        : rows.keys.firstOrNull;
+    final row = rows[date];
+    final content = row?['content'] as Map?;
+    final savedTemplate = content?['template'];
+    final template = savedTemplate is Map && savedTemplate['version'] == 1
+        ? savedTemplate
+        : null;
+    final cutoff = _stamp(row?['cutoff_at']);
+    final fallback = switch ((data, row, template)) {
+      (null, _, _) =>
+        state.isLoading
+            ? const Align(
+                alignment: AlignmentDirectional.topStart,
+                child: CircularProgressIndicator(),
+              )
+            : _ReportNotice(
+                message: 'Unable to load AI summaries.',
+                onRetry: () => ref.invalidate(aiSummariesProvider),
               ),
-              children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 960),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        header,
-                        const SizedBox(height: 16),
-                        if (row != null && content != null)
-                          ReportDocument(
-                            row: row,
-                            detailed: detailed,
-                            cutoffLabel: _stamp(row['cutoff_at']),
-                          )
-                        else
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Text('No reports yet.'),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
+      (_, null, _) => const Text('No reports yet.'),
+      (_, final saved?, null) => ReportDocument(
+        row: saved,
+        detailed: _detailed,
+      ),
+      _ => null,
+    };
+    return ReportReader(
+      template: template,
+      reportDate: date,
+      detailed: _detailed,
+      header: _ReportHeader(
+        data: data,
+        dates: rows.keys,
+        date: date,
+        cutoff: cutoff,
+        detailed: _detailed,
+        onView: (value) => setState(() => _detailed = value),
+        onDate: (value) => setState(() => _selectedDate = value),
+      ),
+      fallback: fallback,
+    );
   }
+}
+
+class _ReportNotice extends StatelessWidget {
+  const _ReportNotice({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(message),
+      TextButton(onPressed: onRetry, child: const Text('Retry')),
+    ],
+  );
 }
 
 class _ReportHeader extends StatelessWidget {
   const _ReportHeader({
-    required this.data,
-    required this.rows,
-    required this.date,
-    required this.meta,
-    required this.detailed,
-    required this.hasTemplate,
-    required this.onView,
-    required this.onDate,
-    required this.onRequested,
+    this.data,
+    this.dates = const [],
+    this.date,
+    this.cutoff,
+    this.detailed = false,
+    this.onView,
+    this.onDate,
   });
-  final Map<String, dynamic> data;
-  final List<Map> rows;
+
+  final Map<String, dynamic>? data;
+  final Iterable<String> dates;
   final String? date;
-  final String? meta;
+  final String? cutoff;
   final bool detailed;
-  final bool hasTemplate;
-  final ValueChanged<bool> onView;
-  final ValueChanged<String?> onDate;
-  final VoidCallback onRequested;
+  final ValueChanged<bool>? onView;
+  final ValueChanged<String?>? onDate;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.clarity;
-    final ready = data['status'] == 'ready';
-    final status = ready && data['enabled'] == true
-        ? 'Scheduled daily at 5:05 pm EAT.'
-        : summaryStatus(data);
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'AI summary',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontSize: MediaQuery.sizeOf(context).width < 480 ? 24 : 28,
-          ),
-        ),
-        const SizedBox(height: 5),
-        if (meta != null)
-          Text(
-            meta!,
-            style: theme.textTheme.bodySmall?.copyWith(color: colors.textMuted),
-          ),
-        const SizedBox(height: 4),
-        Text(
-          status,
-          style: theme.textTheme.bodySmall?.copyWith(color: colors.textMuted),
-        ),
-      ],
+    final reportState = data;
+    final canGenerate = reportState?['can_generate'] == true;
+    final status = switch (reportState?['status']) {
+      'ready' when reportState?['enabled'] == true =>
+        'Scheduled daily at 5:05 pm EAT.',
+      'ready' => 'Daily schedule is off.',
+      _ when reportState != null => summaryStatus(reportState),
+      _ => null,
+    };
+    final factsStyle = theme.textTheme.bodySmall?.copyWith(
+      color: colors.textMuted,
     );
+    final title = Text(
+      'AI summary',
+      style: theme.textTheme.headlineMedium?.copyWith(
+        fontSize: MediaQuery.sizeOf(context).width < 480 ? 24 : 28,
+      ),
+    );
+
+    ChoiceChip viewChip(String label, bool isDetailed) {
+      final selected = detailed == isDetailed;
+      return ChoiceChip(
+        key: ValueKey(
+          isDetailed ? 'report-detailed-view' : 'report-summary-view',
+        ),
+        label: Text(label),
+        selected: selected,
+        selectedColor: colors.accentSoft,
+        side: BorderSide(color: selected ? colors.accent : colors.border),
+        showCheckmark: false,
+        onSelected: (_) => onView?.call(isDetailed),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, box) {
+        final scaler = MediaQuery.textScalerOf(context);
         final controls = Wrap(
           spacing: 8,
-          runSpacing: 7,
+          runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (rows.isNotEmpty) ...[
+            if (dates.isNotEmpty) ...[
               SizedBox(
-                width: MediaQuery.textScalerOf(context)
-                    .scale(162)
-                    .clamp(0.0, box.maxWidth),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(date),
-                  initialValue: date,
-                  isExpanded: true,
+                width: scaler.scale(162).clamp(0.0, box.maxWidth),
+                child: InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Report date',
                     isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
                   ),
-                  items: [
-                    for (final row in rows)
-                      DropdownMenuItem(
-                        value: '${row['summary_date']}',
-                        child: Text(
-                          _reportDate(row['summary_date']),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
-                  onChanged: onDate,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      key: const ValueKey('report-date-picker'),
+                      value: date,
+                      isExpanded: true,
+                      isDense: true,
+                      menuMaxHeight: 420,
+                      items: [
+                        for (final date in dates)
+                          DropdownMenuItem(
+                            value: date,
+                            child: Text(
+                              _reportDate(date),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: onDate,
+                    ),
+                  ),
                 ),
               ),
-              ChoiceChip(
-                key: const ValueKey('report-summary-view'),
-                label: Text(hasTemplate ? 'Quick View' : 'Summary'),
-                selected: !detailed,
-                selectedColor: colors.accentSoft,
-                onSelected: (_) => onView(false),
-              ),
-              ChoiceChip(
-                key: const ValueKey('report-detailed-view'),
-                label: const Text('Detailed report'),
-                selected: detailed,
-                selectedColor: colors.accentSoft,
-                onSelected: (_) => onView(true),
-              ),
+              viewChip('Quick View', false),
+              viewChip('Detailed report', true),
             ],
-            if (data['can_generate'] == true)
-              AiGenerateReportButton(data: data, onRequested: onRequested),
+            if (canGenerate) AiGenerateReportButton(data: reportState!),
           ],
         );
-        if (box.maxWidth >= MediaQuery.textScalerOf(context).scale(1000)) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(child: title),
-              const SizedBox(width: 24),
-              Flexible(
-                flex: 2,
-                child: Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: controls,
-                ),
-              ),
-            ],
-          );
-        }
+        final hasControls = dates.isNotEmpty || canGenerate;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [title, const SizedBox(height: 12), controls],
+          children: [
+            if (hasControls && box.maxWidth >= scaler.scale(1000))
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 24),
+                  SizedBox(width: box.maxWidth * .58, child: controls),
+                ],
+              )
+            else ...[
+              title,
+              if (hasControls) ...[const SizedBox(height: 12), controls],
+            ],
+            if (cutoff != null || status != null) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 14,
+                runSpacing: 4,
+                children: [
+                  if (cutoff != null)
+                    Text('Data as of $cutoff', style: factsStyle),
+                  if (status != null)
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(status, style: factsStyle),
+                    ),
+                ],
+              ),
+            ],
+          ],
         );
       },
     );
@@ -333,13 +361,8 @@ class _ReportHeader extends StatelessWidget {
 
 /// Requests a server-side refresh; the key never leaves the server.
 class AiGenerateReportButton extends ConsumerStatefulWidget {
-  const AiGenerateReportButton({
-    super.key,
-    required this.data,
-    this.onRequested,
-  });
+  const AiGenerateReportButton({super.key, required this.data});
   final Map<String, dynamic> data;
-  final VoidCallback? onRequested;
   @override
   ConsumerState<AiGenerateReportButton> createState() =>
       _AiGenerateReportButtonState();
@@ -355,7 +378,6 @@ class _AiGenerateReportButtonState
       await ref.read(aiSummaryServiceProvider).generate();
       requested = true;
       if (!mounted) return;
-      widget.onRequested?.call();
       ref.invalidate(aiSummariesProvider);
       await ref.read(aiSummariesProvider.future);
     } catch (error) {
