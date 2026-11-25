@@ -717,8 +717,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
                     : (v) => setState(() {
                         final next = {...on};
                         v ? next.add(name) : next.remove(name);
-                        // At least one page stays open.
-                        if (next.isNotEmpty) _pages = next;
+                        _pages = next;
                       }),
               ),
           ],
@@ -926,6 +925,7 @@ class _UserDialogState extends ConsumerState<_UserDialog> {
 List<(String, String)> pagesForRole(UserRole role) => [
   if (role.canEdit) ('home', 'Overview'),
   ('dailyReports', 'Daily reports'),
+  ('todo', 'To-do'),
   if (role.canEdit) ('week', 'Weekly tracker'),
   if (role.seesRevenue) ('revenue', 'Revenue'),
   ('applications', 'Applications'),
@@ -996,12 +996,15 @@ Future<void> _showCredentials(
 
 /// A temporary password that's easy to read out and type: no 0/O or 1/l.
 String generateTemporaryPassword() {
-  const letters = 'abcdefghjkmnpqrstuvwxyz';
-  const digits = '23456789';
-  final rng = Random.secure();
-  String pick(String from, int n) =>
-      List.generate(n, (_) => from[rng.nextInt(from.length)]).join();
-  return '${pick(letters, 4)}-${pick(digits, 4)}-${pick(letters, 4)}';
+  const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  final random = Random.secure();
+  return List.generate(
+    4,
+    (_) => List.generate(
+      4,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+    ).join(),
+  ).join('-');
 }
 
 /// A short, plain message for an account action that didn't work.

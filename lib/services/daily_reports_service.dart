@@ -285,7 +285,7 @@ class ReportsChangedNotifier extends Notifier<int> {
 int? _reportsUser(Ref ref) {
   if (!ref.watch(accountsEnabledProvider)) return null;
   final user = ref.watch(currentUserProvider);
-  if (user == null) return null;
+  if (user == null || !user.mayOpen('dailyReports')) return null;
   if (!ref.watch(cloudSyncProvider.select((s) => s.phase == SyncPhase.live))) {
     return null;
   }
@@ -314,14 +314,17 @@ class ReportStartNotifier extends Notifier<ReportsStart?> {
   ReportsStart? build() {
     ref.watch(reportsChangedProvider);
     ref.watch(dataVersionProvider);
-    final me = ref.watch(currentUserProvider)?.id;
+    final user = ref.watch(currentUserProvider);
+    if (user == null || !user.mayOpen('dailyReports')) {
+      _seq++;
+      return null;
+    }
+    final me = user.id;
     final online = _reportsUser(ref);
     // The copy saved on this device first, then the latest.
-    if (me != null) {
-      final current = stateOrNull;
-      if (current == null || current.meta.myId != me) {
-        unawaited(_fromDisk(me));
-      }
+    final current = stateOrNull;
+    if (current == null || current.meta.myId != me) {
+      unawaited(_fromDisk(me));
     }
     if (online != null) unawaited(refresh());
     final now = stateOrNull;
@@ -331,7 +334,9 @@ class ReportStartNotifier extends Notifier<ReportsStart?> {
   Future<void> _fromDisk(int me) async {
     try {
       final raw = (await SharedPreferences.getInstance()).getString(_key(me));
-      if (raw == null || stateOrNull != null) return;
+      if (!ref.mounted || raw == null || stateOrNull != null) return;
+      final user = ref.read(currentUserProvider);
+      if (user?.id != me || user?.mayOpen('dailyReports') != true) return;
       final start = ReportsStart.fromJson(
         (jsonDecode(raw) as Map).cast<String, Object?>(),
       );

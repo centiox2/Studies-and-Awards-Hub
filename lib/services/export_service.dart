@@ -1,3 +1,5 @@
+import 'spreadsheet_text.dart';
+
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
@@ -68,7 +70,7 @@ class ExportService {
               ? IntCellValue(value)
               : value is double
               ? DoubleCellValue(value)
-              : TextCellValue('${value ?? ''}'),
+              : spreadsheetText(value),
           cellStyle: style,
         );
       }

@@ -31,15 +31,7 @@ create table if not exists private.airtable_config (
   fields     jsonb not null,
   enabled    boolean not null default false   -- switched on once checked
 );
-insert into private.airtable_config (id, base_id, table_id, view_id, fields)
-values (1, 'appIohpumIL9A0S6I', 'tbl70dKK7cS4qg2nv', 'viwWTcXq51ZU9ogLo',
-  '{"student":"fldqRDr6bYHemY5Jp","rto":"fldmOOpIKYYmotxLq",
-    "country":"flduT37ZU1qT2oxfj","doc_date":"fld9fk1b4KS3m29Da",
-    "app_date":"fldTwdFJdAb6mG5Xj","offer_date":"fldfM6DHHcxFbgG7A",
-    "coe_date":"fldWX9dyqMPJRccg5","status":"fldaJhoOjVZJTuZ9d",
-    "assignee":"fldD5mwyrmAEkISGy","todo":"fldx7eZYxaUfePGnQ",
-    "follow_up":"fldI6vaEWxJOSublh"}')
-on conflict (id) do nothing;
+-- Provision the workspace mapping in private.airtable_config during deployment.
 
 -- How the sync is doing.
 create table if not exists private.airtable_state (

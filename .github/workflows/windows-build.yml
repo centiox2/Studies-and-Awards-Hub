@@ -15,11 +15,7 @@ concurrency:
 
 # Online database (Supabase). The publishable key is designed to ship inside
 # the app: it reads nothing by itself (every table is closed to it; data only
-# comes through signed-in functions). Repository secrets with the same
-# names, if set, take priority.
-env:
-  SUPABASE_URL_DEFAULT: https://dpmluuckgstycdctqwym.supabase.co
-  SUPABASE_KEY_DEFAULT: sb_publishable_qsw0KVpDbNr616WaSmG70w_QplfFMPs
+# comes through signed-in functions). The URL and key come from repository secrets.
 
 # Read-only by default; only the build job (which publishes the release)
 # gets write access.
@@ -57,8 +53,8 @@ jobs:
 
       - name: Check Supabase secrets
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || env.SUPABASE_URL_DEFAULT }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || env.SUPABASE_KEY_DEFAULT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           if (-not $env:SUPABASE_URL -or -not $env:SUPABASE_KEY) {
             Write-Error "SUPABASE_URL / SUPABASE_KEY repository secrets are missing - the app would build without online sync. Add them under Settings > Secrets and variables > Actions > Repository secrets."
@@ -71,8 +67,8 @@ jobs:
 
       - name: Build Windows release
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || env.SUPABASE_URL_DEFAULT }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || env.SUPABASE_KEY_DEFAULT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: flutter build windows --release --dart-define=SUPABASE_URL="$env:SUPABASE_URL" --dart-define=SUPABASE_KEY="$env:SUPABASE_KEY"
 
       # Code signing (Authenticode), when the certificate is in the
@@ -86,6 +82,9 @@ jobs:
           WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
         run: |
           if (-not $env:WINDOWS_CERT_PFX_BASE64 -or -not $env:WINDOWS_CERT_PASSWORD) {
+            if ($env:GITHUB_REF -eq "refs/heads/main") {
+              throw "Production installers require a Windows signing certificate."
+            }
             Write-Output "::warning::No Windows code-signing certificate in the secrets (WINDOWS_CERT_PFX_BASE64, WINDOWS_CERT_PASSWORD): the app and installer are not signed."
             exit 0
           }
@@ -113,10 +112,17 @@ jobs:
       # uninstaller, and in-place upgrades (Inno Setup).
       - name: Build installer
         run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) {
-            choco install innosetup -y --no-progress
+          $compiler = Join-Path $env:RUNNER_TEMP 'innosetup-6.4.3.exe'
+          $installDir = Join-Path $env:RUNNER_TEMP 'innosetup-6.4.3'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe' -OutFile $compiler
+          $checksum = (Get-FileHash $compiler -Algorithm SHA256).Hash
+          if ($checksum -ne 'f3c42116542c4cc57263c5ba6c4feabfc49fe771f2f98a79d2f7628b8762723b') {
+            throw 'Inno Setup checksum verification failed.'
           }
+          $options = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="{0}"' -f $installDir
+          $install = Start-Process -FilePath $compiler -ArgumentList $options -WindowStyle Hidden -PassThru -Wait
+          if ($install.ExitCode -ne 0) { exit $install.ExitCode }
+          $iscc = Join-Path $installDir 'ISCC.exe'
           $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)').Matches[0].Groups[1].Value
           if ($env:SIGNTOOL) {
             # Inno Setup signs the installer and uninstaller with this

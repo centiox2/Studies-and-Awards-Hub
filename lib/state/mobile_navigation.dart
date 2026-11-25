@@ -36,7 +36,6 @@ final availableAppTabsProvider = Provider<List<AppTab>>((ref) {
     for (final tab in byRole)
       if (tab == AppTab.aiSummary ||
           tab == AppTab.settings ||
-          tab == AppTab.todo ||
           (user?.mayOpen(tab.name) ?? true))
         tab,
   ];

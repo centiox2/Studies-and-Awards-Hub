@@ -1,3 +1,5 @@
+import 'spreadsheet_text.dart';
+
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
@@ -21,7 +23,7 @@ void _row(Sheet s, int r, List<Object?> cells, {CellStyle? style}) {
           ? IntCellValue(v)
           : v is double
           ? DoubleCellValue(v)
-          : TextCellValue('${v ?? ''}'),
+          : spreadsheetText(v),
       cellStyle: style,
     );
   }

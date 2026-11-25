@@ -1,3 +1,5 @@
+import 'spreadsheet_text.dart';
+
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
@@ -77,7 +79,7 @@ Uint8List operationsReportToExcel(OperationsReport report) {
         switch (v) {
           final int i => IntCellValue(i),
           final double d => DoubleCellValue(d),
-          _ => TextCellValue('${v ?? ''}'),
+          _ => spreadsheetText(v),
         },
         cellStyle: style,
       );

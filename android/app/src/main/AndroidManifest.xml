@@ -2,6 +2,8 @@
     <!-- Needed for online sync (Supabase); release builds have no network without it. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false"
         android:label="S&amp;A Hub"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

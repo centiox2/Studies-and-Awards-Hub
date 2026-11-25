@@ -1,6 +1,9 @@
 package com.clienttracker.client_tracker
 
+import android.content.ContentResolver
 import android.content.Intent
+import android.os.Parcelable
+import android.os.SystemClock
 import android.net.Uri
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
@@ -8,7 +11,10 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.IOException
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 /**
  * Share → Client Tracker: payment photos (one or many) or message text
@@ -23,9 +29,10 @@ class MainActivity : FlutterActivity() {
     /** A share that arrived before the app was ready to take it. */
     private var pending: Map<String, Any?>? = null
 
-    /** Photos are copied on this thread, never the main one, so a large or
-     *  slow share can't freeze the app. One at a time, in order. */
-    private val io = Executors.newSingleThreadExecutor()
+    // Bound both running and queued shares from external senders.
+    private val io = ThreadPoolExecutor(
+        2, 2, 0, TimeUnit.SECONDS, ArrayBlockingQueue(2),
+    )
 
     /** Shares still being copied, and an "initialShare" call waiting on them. */
     private var copying = 0
@@ -53,6 +60,11 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+        File(cacheDir, "shared").listFiles()?.forEach { file ->
+            if (file.name.startsWith("shared_") &&
+                file.lastModified() < System.currentTimeMillis() - CACHE_MAX_AGE_MS
+            ) file.delete()
+        }
         readShare(intent, initial = true)
     }
 
@@ -63,7 +75,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        io.shutdown()
+        io.shutdownNow()
         super.onDestroy()
     }
 
@@ -111,12 +123,21 @@ class MainActivity : FlutterActivity() {
         intent.action = null
         if (uris.isEmpty()) return
         copying++
-        io.execute {
-            val share = photos(uris.take(MAX_PHOTOS))
-            runOnUiThread {
-                copying--
-                deliver(share, initial)
+        try {
+            io.execute {
+                val share = photos(uris.take(MAX_PHOTOS))
+                runOnUiThread {
+                    copying--
+                    if (isDestroyed) {
+                        (share?.get("photos") as? List<*>)?.filterIsInstance<String>()
+                            ?.forEach { File(it).delete() }
+                    } else {
+                        deliver(share, initial)
+                    }
+                }
             }
+        } catch (_: RejectedExecutionException) {
+            copying--
         }
     }
 
@@ -138,7 +159,7 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= 33) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
-            intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            intent.getParcelableExtra<Parcelable>(Intent.EXTRA_STREAM) as? Uri
         }
 
     @Suppress("DEPRECATION")
@@ -146,12 +167,13 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= 33) {
             intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
-            intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+            intent.getParcelableArrayListExtra<Parcelable>(Intent.EXTRA_STREAM)?.filterIsInstance<Uri>()
         } ?: emptyList()
 
     /** Copies a shared photo into the cache, at most [limit] bytes. Nothing
      *  is left behind if the copy fails, comes out empty or is too big. */
     private fun copyToCache(uri: Uri, limit: Long): File? {
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return null
         var file: File? = null
         return try {
             val dir = File(cacheDir, "shared").apply { mkdirs() }
@@ -159,15 +181,21 @@ class MainActivity : FlutterActivity() {
                 "image/png" -> "png"
                 "image/webp" -> "webp"
                 "image/heic" -> "heic"
-                else -> "jpg"
+                "image/jpeg" -> "jpg"
+                "image/heif" -> "heif"
+                else -> return null
             }
-            val out = File(dir, "shared_${System.nanoTime()}.$ext")
+            val out = File.createTempFile("shared_", ".$ext", dir)
             file = out
             var copied = 0L
             contentResolver.openInputStream(uri)?.use { input ->
                 out.outputStream().use { output ->
                     val buf = ByteArray(64 * 1024)
+                    val deadline = SystemClock.elapsedRealtime() + COPY_TIMEOUT_MS
                     while (true) {
+                        if (Thread.currentThread().isInterrupted ||
+                            SystemClock.elapsedRealtime() >= deadline
+                        ) throw IOException("Shared photo copy timed out")
                         val n = input.read(buf)
                         if (n < 0) break
                         copied += n
@@ -191,6 +219,8 @@ class MainActivity : FlutterActivity() {
     private companion object {
         /** At most this many photos from one share. */
         const val MAX_PHOTOS = 20
+        const val COPY_TIMEOUT_MS = 15_000L
+        const val CACHE_MAX_AGE_MS = 60 * 60 * 1000L
 
         /** A payment screenshot is well under this; bigger files are skipped. */
         const val MAX_PHOTO_BYTES = 15L * 1024 * 1024

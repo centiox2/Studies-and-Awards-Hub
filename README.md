@@ -128,14 +128,14 @@ prereleases with downloadable installers/APKs. They do not replace the productio
 `installer-latest` or `android-latest` releases.
 
 - **Android** — every APK is signed with the company's release key, so each new one installs over the last. Secrets: `ANDROID_KEYSTORE_BASE64` (the `.jks` file, base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Without them the Android build stops (it won't publish an APK that can't update the installed one). **Keep a safe copy of the `.jks` file and its password**: a lost key means phones must uninstall and reinstall to get updates.
-- **Windows** — the app, installer and uninstaller are signed (Authenticode, SHA-256, timestamped) when `WINDOWS_CERT_PFX_BASE64` (a code-signing certificate `.pfx`, base64) and `WINDOWS_CERT_PASSWORD` are set; without them the installer is built unsigned with a warning. The certificate comes from a certificate authority (an OV or EV code-signing certificate for Studies and Awards Limited).
+- **Windows** — the app, installer and uninstaller are signed (Authenticode, SHA-256, timestamped) when `WINDOWS_CERT_PFX_BASE64` (a code-signing certificate `.pfx`, base64) and `WINDOWS_CERT_PASSWORD` are set; production publication requires a valid signature. Manual previews can still be unsigned. The certificate comes from a certificate authority (an OV or EV code-signing certificate for Studies and Awards Limited).
 
 ## Data safety
 
 - **SQLite** storage (WAL mode, foreign keys ON) — tables `staff`, `weeks`, `work_days`, `client_counts`.
 - **Totals are never stored** — always derived from the raw rows, so they can never drift.
 - **Automatic rolling DB backups** — the previous 5 sessions' database files are kept (`client_tracker.db.bak1…bak5`).
-- **Automatic JSON backup** at every launch (last 10 kept) in `<Documents>/ClientTracker/auto_backups`.
+- **Automatic JSON backups** are saved to the app support directory on native devices. On the web, use Settings → Data → Save backup to download a copy.
 - Restore writes a **safety copy** of current data (`before_restore_*.json`) before overwriting.
 - Duplicate weeks are refused; dates are real `DateTime` objects internally and always shown as **DD/MM/YYYY** — the spreadsheet's day/month swap bug can't happen.
 - Deleting staff or weeks always asks for confirmation. Deactivation (the recommended option when someone leaves) keeps all history.
@@ -239,9 +239,25 @@ and the follow-ups `20261118082030_ai_summary_job_auth_guard.sql`,
 the function authenticates its private job token itself, with the claim/finish RPCs
 restricted to `service_role`. The migration creates pg_net and uses existing
 pg_cron/Vault. It starts **disabled**, with no Gemini key or non-admin assignments.
-The dispatch URL in the migration targets this repository's Supabase project;
-change it when provisioning a different project. New installations may use the
-updated `supabase/schema.sql`. Do not apply both copies of the same schema addition.
+The latest security migration is `20261125064349_security_audit_hardening.sql`.
+Before applying it or deploying the worker, create a Vault secret named
+`ai_summary_dispatch_url` with the project's HTTPS Edge Function URL ending
+in `/functions/v1/daily-ai-summary`. Set the worker's `SUMMARY_DISPATCH_SECRET`
+to the same value as the existing Vault secret `ai_summary_job_token`. Keep
+both values in their respective secret stores. New installations can use
+`supabase/schema.sql` and provision their Airtable IDs in
+`private.airtable_config`; existing databases retain their mapping.
+
+Set `SUPABASE_URL` and `SUPABASE_KEY` as build environment variables in Vercel
+and as Actions repository secrets for the installers. If hosting the web app
+against a different Supabase project, update the `connect-src` origins in
+`vercel.json` to match.
+
+Existing sessions saved by older clients require a fresh sign-in after
+upgrade. Native sign-in tokens are kept in the system credential store.
+On the web the token lasts until the tab reloads or closes. The app preserves
+existing browser backups for manual recovery and stops creating new copies
+in browser storage.
 
 The worker follows Google's [structured output REST contract](https://aistudio.google.com/docs/structured-output?generate-content=true).
 The model is configurable; verify its availability for your key before enabling.
@@ -258,6 +274,7 @@ npx deno check supabase/functions/daily-ai-summary/index.ts
 npx deno test supabase/functions/daily-ai-summary/
 npx deno run --node-modules-dir=none --no-lock -A tool/ai_summary_sql_test.mjs
 npx deno run --node-modules-dir=none --no-lock -A tool/manual_ai_summary_sql_test.mjs
+npx deno run --node-modules-dir=none --no-lock -A tool/security_audit_sql_test.mjs
 ```
 
 The SQL suite uses an isolated PGlite database, simulated clock and Vault/network

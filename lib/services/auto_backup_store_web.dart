@@ -1,12 +1,8 @@
-import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auto_backup_types.dart';
 
-/// Browser: the last few daily copies kept in this browser's storage. They
-/// protect against mistakes, not against clearing the browser's data — so
-/// Settings still recommends saving a backup file.
+/// Existing copies remain recoverable. New browser backups are downloads.
 AutoBackupStore createAutoBackupStore({
   required String databaseFile,
   String? folder,
@@ -23,7 +19,10 @@ class _BrowserStore extends AutoBackupStore {
   String get location => 'this browser';
 
   @override
-  int get keep => 5;
+  int get keep => 0;
+
+  @override
+  bool get enabled => false;
 
   @override
   Future<List<AutoBackupEntry>> list() async {
@@ -40,26 +39,7 @@ class _BrowserStore extends AutoBackupStore {
   }
 
   @override
-  Future<void> save(String name, String json) async {
-    final prefs = await SharedPreferences.getInstance();
-    // Compact: browser storage is small.
-    final compact = jsonEncode(jsonDecode(json));
-    final key = '$_prefix${DateTime.now().toIso8601String()}';
-    final existing = await list();
-    // Make room first, so a full storage doesn't block today's copy.
-    for (final old in existing.skip(keep - 1)) {
-      await prefs.remove(old.id);
-    }
-    try {
-      await prefs.setString(key, compact);
-    } catch (_) {
-      // Storage full: drop all but the newest copy and try once more.
-      for (final old in existing.skip(1)) {
-        await prefs.remove(old.id);
-      }
-      await prefs.setString(key, compact);
-    }
-  }
+  Future<void> save(String name, String json) async {}
 
   @override
   Future<String?> read(String id) async {

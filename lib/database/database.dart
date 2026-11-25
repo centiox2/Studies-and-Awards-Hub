@@ -367,6 +367,10 @@ class AppDatabase {
           ON client_counts(staff_id);
       ''');
 
+      db.execute('PRAGMA secure_delete = ON;');
+      db.execute(
+        'UPDATE user_signins SET token = NULL, remembered = 0 WHERE token IS NOT NULL;',
+      );
       db.execute('PRAGMA user_version = $schemaVersion;');
       db.execute('COMMIT');
     } catch (e) {

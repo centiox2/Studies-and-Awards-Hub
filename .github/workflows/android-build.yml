@@ -13,11 +13,7 @@ concurrency:
 
 # Same online database as the Windows build. The publishable key is meant
 # to ship inside the app: it reads nothing by itself (every table is closed
-# to it; data only comes through signed-in functions). Repository secrets
-# with the same names, if set, take priority.
-env:
-  SUPABASE_URL_DEFAULT: https://dpmluuckgstycdctqwym.supabase.co
-  SUPABASE_KEY_DEFAULT: sb_publishable_qsw0KVpDbNr616WaSmG70w_QplfFMPs
+# to it; data only comes through signed-in functions). The URL and key come from repository secrets.
 
 # Read-only by default; only the build job (which publishes the release)
 # gets write access.
@@ -54,8 +50,8 @@ jobs:
 
       - name: Check Supabase details
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || env.SUPABASE_URL_DEFAULT }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || env.SUPABASE_KEY_DEFAULT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
             echo "::error::SUPABASE_URL / SUPABASE_KEY are missing - the app would build without online sync."
@@ -91,8 +87,8 @@ jobs:
 
       - name: Build APK
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || env.SUPABASE_URL_DEFAULT }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || env.SUPABASE_KEY_DEFAULT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: flutter build apk --release --dart-define=SUPABASE_URL="$SUPABASE_URL" --dart-define=SUPABASE_KEY="$SUPABASE_KEY"
 
       # Proof the APK carries the release key (not the debug one).

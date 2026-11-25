@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:client_tracker/database/app_database_io.dart';
 import 'package:client_tracker/database/database.dart';
+import 'package:client_tracker/repositories/auth_repository.dart';
+import 'package:client_tracker/models/user_role.dart';
 import 'package:client_tracker/repositories/application_repository.dart';
 import 'package:client_tracker/repositories/client_count_repository.dart';
 import 'package:client_tracker/repositories/staff_repository.dart';
@@ -92,6 +94,29 @@ void main() {
     expect(ClientCountRepository(db).countValues(day.id, joy.id).newClients, 3);
   });
 
+  test('upgrading strips a legacy session token from the live database', () {
+    final dir = Directory.systemTemp.createTempSync('legacy_session');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final old = openPlatformDatabase(dir.path);
+    old.raw.execute(
+      'INSERT INTO user_signins (username, user_json, token, remembered, updated_at) '
+      "VALUES ('amina', '{}', 'legacy-session-fixture', 1, 'now');",
+    );
+    old.close();
+
+    final upgraded = openPlatformDatabase(dir.path);
+    expect(
+      upgraded.raw.select('SELECT token, remembered FROM user_signins').single,
+      {'token': null, 'remembered': 0},
+    );
+    final file = upgraded.file;
+    upgraded.close();
+    expect(
+      File(file).readAsStringSync(encoding: latin1),
+      isNot(contains('legacy-session-fixture')),
+    );
+  });
+
   test('the rolling backup holds unsaved WAL changes but no sign-ins', () {
     final dir = Directory.systemTemp.createTempSync('backup_scrub');
     addTearDown(() => dir.deleteSync(recursive: true));
@@ -102,6 +127,9 @@ void main() {
       'INSERT INTO user_signins (username, user_json, token, remembered, '
       "updated_at) VALUES ('amina', '{}', 'secret-token', 1, 'now');",
     );
+    final auth = AuthRepository(live);
+    auth.setAdminPassword('local-secret');
+    auth.setProfilePassword(UserRole.director, 'director-secret');
     // An older copy from before sign-ins were taken out.
     File(path).copySync('$path.bak2');
     final old = sqlite3.open('$path.bak2');
@@ -124,6 +152,8 @@ void main() {
     addTearDown(copy.dispose);
     expect(copy.select('SELECT * FROM weeks;'), hasLength(1));
     expect(copy.select('SELECT * FROM user_signins;'), isEmpty);
+    expect(copy.select('SELECT * FROM app_accounts;'), isEmpty);
+    expect(copy.select('SELECT * FROM profile_passwords;'), isEmpty);
     final older = sqlite3.open('$path.bak3');
     addTearDown(older.dispose);
     expect(older.select('SELECT * FROM user_signins;'), isEmpty);

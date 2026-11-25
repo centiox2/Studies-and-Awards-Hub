@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -471,21 +472,22 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
           onSubmitted: (_) => _submit(),
         ),
         const SizedBox(height: Dt.s4),
-        CheckboxListTile(
-          key: const ValueKey('login-remember'),
-          value: _remember,
-          onChanged: _busy
-              ? null
-              : (v) => setState(() => _remember = v ?? false),
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          dense: true,
-          title: const Text('Remember me'),
-          subtitle: const Text(
-            'Stay signed in on this device for 30 days. Leave unticked on a '
-            'shared computer.',
+        if (!kIsWeb)
+          CheckboxListTile(
+            key: const ValueKey('login-remember'),
+            value: _remember,
+            onChanged: _busy
+                ? null
+                : (v) => setState(() => _remember = v ?? false),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+            title: const Text('Remember me'),
+            subtitle: const Text(
+              'Stay signed in on this device for 30 days. Leave unticked on a '
+              'shared computer.',
+            ),
           ),
-        ),
         const SizedBox(height: Dt.s8),
         FilledButton(
           key: const ValueKey('login-submit'),

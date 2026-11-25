@@ -8,39 +8,81 @@ export class ReportGenerationError extends Error {
     super(code);
   }
 }
+const object = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+
+function counts(value: unknown, keys: string[]) {
+  const source = object(value);
+  return Object.fromEntries(
+    keys.flatMap((key) =>
+      typeof source[key] === "number" ? [[key, source[key]]] : []
+    ),
+  );
+}
+
 export function prepareReportInput(snapshot: unknown) {
-  const source = (snapshot ?? {}) as Record<string, unknown>;
-  const input = structuredClone(Object.fromEntries(
-    ["date", "timezone", ...pages].filter((key) => key in source)
-      .map((key) => [key, source[key]]),
-  ));
-  if (
-    input && typeof input === "object" && input.revenue &&
-    typeof input.revenue === "object"
-  ) {
-    const revenue = input.revenue as Record<string, unknown>;
-    if (typeof revenue.today_cents === "number") {
-      revenue.today_amount = revenue.today_cents / 100;
-    }
-    if (typeof revenue.month_net_cents === "number") {
-      revenue.month_net_amount = revenue.month_net_cents / 100;
-    }
-    if (!revenue.currency || revenue.currency === "unspecified") {
-      revenue.currency = "KSh";
-    }
-    delete revenue.today_cents;
-    delete revenue.month_net_cents;
-    delete revenue.amount_note;
-  }
-  if (input.staff && typeof input.staff === "object") {
-    const staff = input.staff as Record<string, unknown>;
-    if (Array.isArray(staff.activity)) {
-      staff.people_with_recorded_activity = staff.activity.length;
-    }
-    // The app displays named entries from the database, outside model output.
-    delete staff.activity;
-  }
-  return input;
+  const source = object(snapshot);
+  const revenue = object(source.revenue);
+  const applications = object(source.applications);
+  const staff = object(source.staff);
+  return {
+    date:
+      typeof source.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(source.date)
+        ? source.date
+        : undefined,
+    timezone: "Africa/Nairobi",
+    weekly_tracker: counts(source.weekly_tracker, [
+      "today",
+      "today_new",
+      "today_existing",
+      "month_total",
+      "month_new",
+      "month_existing",
+    ]),
+    revenue: {
+      today_amount: typeof revenue.today_cents === "number"
+        ? revenue.today_cents / 100
+        : undefined,
+      month_net_amount: typeof revenue.month_net_cents === "number"
+        ? revenue.month_net_cents / 100
+        : undefined,
+      currency: typeof revenue.currency === "string" &&
+          /^[A-Z]{3}$|^KSh$/.test(revenue.currency)
+        ? revenue.currency
+        : "KSh",
+    },
+    applications: {
+      ...counts(applications, ["total", "with_offer", "with_coe"]),
+      updates_today: counts(applications.updates_today, [
+        "applications_touched",
+        "added",
+        "removed",
+        "statuses_changed",
+        "documents_updated",
+        "submission_dates_updated",
+        "offers_logged",
+        "coes_logged",
+        "offer_or_coe_dates_corrected",
+        "follow_ups_updated",
+      ]),
+    },
+    daily_reports: counts(source.daily_reports, [
+      "today",
+      "open",
+      "submitted_today",
+      "blocked",
+      "overdue",
+    ]),
+    team_todo: counts(source.team_todo, ["open", "done"]),
+    staff: {
+      ...counts(staff, ["active", "total"]),
+      people_with_recorded_activity: Array.isArray(staff.activity)
+        ? staff.activity.length
+        : undefined,
+    },
+  };
 }
 const transient = new Set([408, 500, 502, 503, 504]);
 export async function generateReport(
@@ -49,6 +91,12 @@ export async function generateReport(
   sleep: (ms: number) => Promise<void> = (ms) =>
     new Promise((resolve) => setTimeout(resolve, ms)),
 ) {
+  if (
+    typeof job.model !== "string" ||
+    !/^gemini-[a-zA-Z0-9.-]{1,80}$/.test(job.model)
+  ) {
+    throw new ReportGenerationError("gemini_model_unavailable");
+  }
   const deadline = Date.now() + 85000;
   const template = templateSelection(job.snapshot);
   if (template?.movements.length === 1) {

@@ -1726,12 +1726,10 @@ void main() {
     final auth = AuthRepository(boss);
     auth.setProfilePassword(UserRole.director, 'director-pass');
     auth.rememberProfile(UserRole.director, version: 'v0');
-    SharedPreferences.setMockInitialValues({
-      'cloud_director_token': await cloud.profileLogin(
-        'director',
-        'director-pass',
-      ),
-    });
+    auth.setProfileToken(
+      'cloud_director_token',
+      await cloud.profileLogin('director', 'director-pass'),
+    );
     var container = await pumpApp(tester, boss);
     expect(container.read(adminSessionProvider), UserRole.director);
     container.dispose();

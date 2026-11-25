@@ -157,24 +157,14 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
           onTimeout: () => CloudLink.offline,
         );
     if (!mounted) return;
-    final ok = local || online == CloudLink.linked;
+    final ok =
+        online == CloudLink.linked ||
+        (local && (online == CloudLink.offline || online == CloudLink.off));
     if (ok) {
       // Keep this device's password the same as the online one.
       if (!local) auth.setAdminPassword(password);
       ref.read(adminSessionProvider.notifier).signInAfterSetup();
-      final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
-      if (online == CloudLink.wrongPassword) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Signed in on this device. The online admin password is '
-              'different, so changes stay here until you sign in with it.',
-            ),
-            duration: Duration(seconds: 6),
-          ),
-        );
-      }
     } else {
       setState(() {
         _busy = false;
@@ -241,8 +231,11 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) {
           Future<void> submit() async {
-            if (pw.text.length < 4) {
-              setState(() => error = 'Use at least 4 characters.');
+            if (pw.text.length < AuthRepository.minPasswordLength) {
+              setState(
+                () => error =
+                    'Use at least ${AuthRepository.minPasswordLength} characters.',
+              );
               return;
             }
             if (pw.text != pw2.text) {

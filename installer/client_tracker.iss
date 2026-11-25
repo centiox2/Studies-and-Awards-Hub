@@ -2,7 +2,7 @@
 ;   ISCC.exe /DAppVersion=1.1.0 installer\client_tracker.iss
 ; Installs for the current user (no admin rights needed), with Start menu
 ; and optional desktop shortcuts and an uninstaller. Running a newer
-; installer upgrades in place. The app's data lives in the user's Documents
+; installer upgrades in place. The app's data lives in the user's application data
 ; folder, not here, so upgrading or uninstalling never touches it.
 
 #ifndef AppVersion
@@ -52,8 +52,15 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; Clear the application DLLs so retired plugin binaries do not survive upgrades.
 ; The app used to be called Client Tracker: remove its old shortcuts.
 [InstallDelete]
+Type: files; Name: "{app}\flutter_windows.dll"
+Type: files; Name: "{app}\desktop_drop_plugin.dll"
+Type: files; Name: "{app}\pasteboard_plugin.dll"
+Type: files; Name: "{app}\sqlite3_flutter_libs_plugin.dll"
+Type: files; Name: "{app}\sqlite3.dll"
+Type: files; Name: "{app}\flutter_secure_storage_windows_plugin.dll"
 Type: files; Name: "{autoprograms}\Client Tracker.lnk"
 Type: files; Name: "{autodesktop}\Client Tracker.lnk"
 

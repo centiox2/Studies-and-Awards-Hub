@@ -327,7 +327,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       return KeyEventResult.handled;
     }
     // T: add a to-do, from any page.
-    if (key == LogicalKeyboardKey.keyT &&
+    if (_tabs.contains(AppTab.todo) &&
+        key == LogicalKeyboardKey.keyT &&
         !HardwareKeyboard.instance.isAltPressed) {
       showQuickTodo(context);
       return KeyEventResult.handled;
@@ -617,47 +618,49 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             ],
           ),
         ),
-        bottomNavigationBar: NavigationBar(
-          // A page under "More" lights up the More button.
-          selectedIndex: barIndex >= 0 ? barIndex : barTabs.length,
-          onDestinationSelected: (index) {
-            if (index < barTabs.length) {
-              ref.read(navTabProvider.notifier).set(barTabs[index]);
-            } else {
-              _showMore(moreTabs, tab);
-            }
-          },
-          destinations: [
-            for (final item in barTabs)
-              NavigationDestination(
-                icon: item == AppTab.todo
-                    ? TodoNewBadge(child: Icon(item.icon))
-                    : _reportBadge(
-                        item == AppTab.dailyReports,
+        bottomNavigationBar: allowed.length < 2
+            ? null
+            : NavigationBar(
+                // A page under "More" lights up the More button.
+                selectedIndex: barIndex >= 0 ? barIndex : barTabs.length,
+                onDestinationSelected: (index) {
+                  if (index < barTabs.length) {
+                    ref.read(navTabProvider.notifier).set(barTabs[index]);
+                  } else {
+                    _showMore(moreTabs, tab);
+                  }
+                },
+                destinations: [
+                  for (final item in barTabs)
+                    NavigationDestination(
+                      icon: item == AppTab.todo
+                          ? TodoNewBadge(child: Icon(item.icon))
+                          : _reportBadge(
+                              item == AppTab.dailyReports,
+                              reportCount,
+                              reportDue,
+                              Icon(item.icon),
+                            ),
+                      selectedIcon: Icon(item.icon),
+                      label: item.shortLabel,
+                      tooltip: item.label,
+                    ),
+                  if (useMore)
+                    NavigationDestination(
+                      icon: _reportBadge(
+                        moreTabs.contains(AppTab.dailyReports),
                         reportCount,
                         reportDue,
-                        Icon(item.icon),
+                        moreTabs.contains(AppTab.todo)
+                            ? const TodoNewBadge(child: Icon(Icons.menu))
+                            : const Icon(Icons.menu),
                       ),
-                selectedIcon: Icon(item.icon),
-                label: item.shortLabel,
-                tooltip: item.label,
+                      selectedIcon: const Icon(Icons.menu),
+                      label: 'More',
+                      tooltip: 'More pages',
+                    ),
+                ],
               ),
-            if (useMore)
-              NavigationDestination(
-                icon: _reportBadge(
-                  moreTabs.contains(AppTab.dailyReports),
-                  reportCount,
-                  reportDue,
-                  moreTabs.contains(AppTab.todo)
-                      ? const TodoNewBadge(child: Icon(Icons.menu))
-                      : const Icon(Icons.menu),
-                ),
-                selectedIcon: const Icon(Icons.menu),
-                label: 'More',
-                tooltip: 'More pages',
-              ),
-          ],
-        ),
       );
     }
 
@@ -1283,7 +1286,8 @@ class _MobileTopBar extends ConsumerWidget {
             ),
           ),
           const SyncStatusBadge(compact: true),
-          const QuickTodoButton(compact: true),
+          if (ref.watch(availableAppTabsProvider).contains(AppTab.todo))
+            const QuickTodoButton(compact: true),
           IconButton(
             key: const ValueKey('phone-search'),
             tooltip: 'Search',

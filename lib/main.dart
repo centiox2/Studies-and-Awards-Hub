@@ -1,3 +1,8 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'repositories/auth_repository.dart';
+import 'services/session_secrets.dart';
+
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
@@ -38,26 +43,41 @@ Future<void> main() async {
 
   // path_provider has no web implementation; the browser backend stores its
   // database in IndexedDB and ignores the directory entirely.
-  final dataDir = kIsWeb
-      ? '/client_tracker'
-      : p.join(
-          (await getApplicationDocumentsDirectory()).path,
-          'ClientTracker',
-        );
-
   AppDatabase db;
   try {
+    var dataDir = '/client_tracker';
+    if (!kIsWeb) {
+      final legacy = p.join(
+        (await getApplicationDocumentsDirectory()).path,
+        'ClientTracker',
+      );
+      dataDir = platformDataDirectory(
+        (await getApplicationSupportDirectory()).path,
+      );
+      migratePlatformDatabaseDirectory(legacy, dataDir);
+    }
     db = await openAppDatabase(dataDir);
   } catch (e) {
     runApp(_StartupErrorApp(error: e));
     return;
   }
 
+  final secrets = await SessionSecrets.load();
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in SessionSecrets.legacyProfileKeys) {
+      await prefs.remove(key);
+    }
+  } catch (_) {}
+
   // Automatic backups run daily from the app itself (autoBackupProvider).
 
   runApp(
     ProviderScope(
-      overrides: [databaseProvider.overrideWithValue(db)],
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        authRepositoryProvider.overrideWithValue(AuthRepository(db, secrets)),
+      ],
       child: const ClientTrackerApp(),
     ),
   );

@@ -10,3 +10,7 @@ Future<AppDatabase> openPlatformDatabase(String directory) async {
 
 /// False: neither the browser nor a file backend is in use.
 bool get isWebDatabase => false;
+
+void migratePlatformDatabaseDirectory(String legacy, String target) {}
+
+String platformDataDirectory(String support) => support;

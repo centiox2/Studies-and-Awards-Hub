@@ -28,3 +28,7 @@ Future<AppDatabase> openPlatformDatabase(String directory) async {
 
 /// True: the browser build stores its database in IndexedDB.
 bool get isWebDatabase => true;
+
+void migratePlatformDatabaseDirectory(String legacy, String target) {}
+
+String platformDataDirectory(String support) => support;

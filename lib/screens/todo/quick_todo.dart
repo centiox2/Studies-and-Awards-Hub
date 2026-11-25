@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../design/app_theme.dart';
 import '../../services/todo_service.dart';
 import '../../state/app_state.dart';
+import '../../state/mobile_navigation.dart';
 import 'todo_editor.dart' show todoDayLabel;
 import 'todo_send.dart' show canSendTodos;
 
@@ -17,11 +18,15 @@ Future<void> showQuickTodo(
   String title = '',
   String? clientKey,
   String? clientName,
-}) => showDialog<void>(
-  context: context,
-  builder: (_) =>
-      _QuickTodo(title: title, clientKey: clientKey, clientName: clientName),
-);
+}) async {
+  final ref = ProviderScope.containerOf(context, listen: false);
+  if (!ref.read(availableAppTabsProvider).contains(AppTab.todo)) return;
+  await showDialog<void>(
+    context: context,
+    builder: (_) =>
+        _QuickTodo(title: title, clientKey: clientKey, clientName: clientName),
+  );
+}
 
 class _QuickTodo extends ConsumerStatefulWidget {
   const _QuickTodo({required this.title, this.clientKey, this.clientName});

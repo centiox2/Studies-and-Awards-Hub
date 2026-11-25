@@ -127,13 +127,27 @@ begin
  error_code=case when p_content is null then left(coalesce(p_error,'generation_failed'),80) else null end
  where run_id=p_run_id and status='running' and lease_until>now();
 end $$;
+-- The database dispatch URL is deployment configuration, stored in Vault.
+create or replace function private.ai_summary_dispatch_url() returns text
+language plpgsql stable security invoker set search_path = '' as $$
+declare endpoint text;
+begin
+  select decrypted_secret into endpoint
+  from vault.decrypted_secrets where name = 'ai_summary_dispatch_url';
+  if endpoint is null or endpoint !~ '^https://[A-Za-z0-9.-]+/functions/v1/daily-ai-summary$' then
+    raise exception 'job_not_configured';
+  end if;
+  return endpoint;
+end $$;
+revoke all on function private.ai_summary_dispatch_url() from public, anon, authenticated;
+
 create function private.ai_summary_dispatch() returns void
 language plpgsql security definer set search_path='' as $$
 declare secret text;
 begin
  if not exists(select 1 from private.ai_summary_config where enabled and key_id is not null) then return; end if;
  select v.decrypted_secret into secret from private.ai_summary_config c join vault.decrypted_secrets v on v.id=c.job_key_id;
- perform net.http_post(url:='https://dpmluuckgstycdctqwym.supabase.co/functions/v1/daily-ai-summary',
+ perform net.http_post(url:=private.ai_summary_dispatch_url(),
  headers:=jsonb_build_object('Content-Type','application/json','x-summary-job-token',secret),body:='{}'::jsonb,timeout_milliseconds:=180000);
 end $$;
 revoke all on function private.ai_summary_context(),private.ai_summary_dispatch() from public,anon,authenticated;

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/cloud_config.dart';
 import '../services/app_info.dart';
@@ -194,14 +193,14 @@ class CloudSyncController extends Notifier<CloudSyncState> {
         _remember = true;
       }
     }
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString(_tokenKey);
-      _teamToken = prefs.getString(_teamTokenKey);
-      _directorToken = prefs.getString(_directorTokenKey);
-      _viewerToken = prefs.getString(_viewerTokenKey);
-    } catch (_) {}
+    final auth = ref.read(authRepositoryProvider);
+    _token = auth.profileToken(_tokenKey);
+    _teamToken = auth.profileToken(_teamTokenKey);
+    _directorToken = auth.profileToken(_directorTokenKey);
+    _viewerToken = auth.profileToken(_viewerTokenKey);
     if (!_tokensLoaded.isCompleted) _tokensLoaded.complete();
+    // AI access can start sync while its provider is still initializing.
+    await Future<void>.value();
     if (!ref.mounted) return;
     state = state.copyWith(
       phase: SyncPhase.connecting,
@@ -763,8 +762,14 @@ class CloudSyncController extends Notifier<CloudSyncState> {
       unawaited(_connect());
       return CloudLink.linked;
     } on CloudException catch (e) {
-      if (e.code == 'wrong_password' || e.code == 'already_claimed') {
-        state = state.copyWith(claimed: true);
+      if (const {
+        'wrong_password',
+        'already_claimed',
+        'locked',
+        'not_allowed',
+      }.contains(e.code)) {
+        _setToken(null);
+        state = state.copyWith(claimed: true, adminLinked: false);
         return CloudLink.wrongPassword;
       }
       return CloudLink.offline;
@@ -948,19 +953,12 @@ class CloudSyncController extends Notifier<CloudSyncState> {
 
   void _setToken(String? token) {
     _token = token;
-    SharedPreferences.getInstance().then(
-      (p) =>
-          token == null ? p.remove(_tokenKey) : p.setString(_tokenKey, token),
-    );
+    ref.read(authRepositoryProvider).setProfileToken(_tokenKey, token);
   }
 
   void _setTeamToken(String? token) {
     _teamToken = token;
-    SharedPreferences.getInstance().then(
-      (p) => token == null
-          ? p.remove(_teamTokenKey)
-          : p.setString(_teamTokenKey, token),
-    );
+    ref.read(authRepositoryProvider).setProfileToken(_teamTokenKey, token);
   }
 
   void _setRoleToken(UserRole role, String? token) {
@@ -978,9 +976,7 @@ class CloudSyncController extends Notifier<CloudSyncState> {
         } else {
           _viewerToken = token;
         }
-        SharedPreferences.getInstance().then(
-          (p) => token == null ? p.remove(key) : p.setString(key, token),
-        );
+        ref.read(authRepositoryProvider).setProfileToken(key, token);
     }
   }
 

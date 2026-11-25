@@ -1,3 +1,5 @@
+import '../services/session_secrets.dart';
+
 import 'dart:convert';
 import 'dart:math';
 
@@ -16,7 +18,15 @@ import '../models/user_role.dart';
 /// The password is never stored, only a salted PBKDF2-HMAC-SHA256 hash, in
 /// the `app_accounts` row with role 'admin'.
 class AuthRepository {
-  AuthRepository(this._db);
+  AuthRepository(this._db, [SessionSecrets? secrets])
+    : _secrets = secrets ?? (_memorySecrets[_db] ??= SessionSecrets());
+
+  static final _memorySecrets = Expando<SessionSecrets>();
+  final SessionSecrets _secrets;
+  static const _accountTokenKey = 'account';
+
+  String? profileToken(String key) => _secrets.get(key);
+  void setProfileToken(String key, String? token) => _secrets.set(key, token);
 
   final AppDatabase _db;
 
@@ -209,8 +219,7 @@ class AuthRepository {
   /// token; null when nobody is.
   ({AppUser user, String token})? get rememberedUser {
     final rows = _db.raw.select(
-      'SELECT user_json, token FROM user_signins '
-      'WHERE remembered = 1 AND token IS NOT NULL LIMIT 1;',
+      'SELECT username, user_json FROM user_signins WHERE remembered = 1 LIMIT 1;',
     );
     if (rows.isEmpty) return null;
     try {
@@ -218,7 +227,11 @@ class AuthRepository {
         (jsonDecode(rows.first['user_json']! as String) as Map)
             .cast<String, Object?>(),
       );
-      return (user: user, token: rows.first['token']! as String);
+      final value = _secrets.get(_accountTokenKey);
+      final prefix = '${rows.first['username']}\n';
+      return value != null && value.startsWith(prefix)
+          ? (user: user, token: value.substring(prefix.length))
+          : null;
     } catch (_) {
       return null;
     }
@@ -249,12 +262,16 @@ class AuthRepository {
           jsonEncode(user.toJson()),
           _hash(password, salt),
           base64Encode(salt),
-          remember ? token : null,
+          null,
           remember && token != null ? 1 : 0,
           DateTime.now().toIso8601String(),
         ],
       );
     });
+    _secrets.set(
+      _accountTokenKey,
+      remember && token != null ? '${user.username}\n$token' : null,
+    );
   }
 
   /// The user's latest details (role, name…) from the online database.
@@ -264,21 +281,24 @@ class AuthRepository {
   );
 
   /// A new online token for the account kept signed in.
-  void updateToken(String username, String token) => _db.raw.execute(
-    'UPDATE user_signins SET token = ? WHERE username = ? AND remembered = 1;',
-    [token, username],
-  );
+  void updateToken(String username, String token) {
+    if (rememberedUser?.user.username == username) {
+      _secrets.set(_accountTokenKey, '$username\n$token');
+    }
+  }
 
   /// Nobody is kept signed in here any more.
-  void forgetSignIn() =>
-      _db.raw.execute('UPDATE user_signins SET remembered = 0, token = NULL;');
+  void forgetSignIn() {
+    _db.raw.execute('UPDATE user_signins SET remembered = 0, token = NULL;');
+    _secrets.set(_accountTokenKey, null);
+  }
 
-  /// Forgets [username] on this device altogether (its password changed
-  /// or the account was switched off), so it can't sign in offline.
-  void forgetUser(String username) => _db.raw.execute(
-    'DELETE FROM user_signins WHERE username = ?;',
-    [username.trim().toLowerCase()],
-  );
+  /// Removes the local password verifier and any session for this account.
+  void forgetUser(String username) {
+    final name = username.trim().toLowerCase();
+    if (rememberedUser?.user.username == name) forgetSignIn();
+    _db.raw.execute('DELETE FROM user_signins WHERE username = ?;', [name]);
+  }
 
   /// Without internet: the account, if [username] signed in on this device
   /// before with this [password]; null otherwise.

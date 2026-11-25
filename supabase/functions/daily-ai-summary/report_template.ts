@@ -159,7 +159,8 @@ export function templateSelection(snapshot: unknown) {
     const to = displayStatus(text(row.to));
     if (
       value(row.count) &&
-      /^(visa granted$|(COE|CAS) issued|offer letter received$)/i.test(to)
+      /^(visa granted|(COE|CAS) issued( \/ done, proceed to visa)?|offer letter received)$/i
+        .test(to)
     ) {
       wins.push(`${plural(value(row.count), "application")} moved to “${to}”.`);
     }
@@ -285,10 +286,10 @@ export function buildTemplateReport(
   );
   const total = value(applications.total);
   const share = (part: number) =>
-    `${Math.round(part * 100 / total)}% of ${count(total)}`;
+    total > 0 ? `${Math.round(part * 100 / total)}% of ${count(total)}` : "—";
   const unassigned = handling.rows.find((p) => p.name === "Unassigned");
   const heavy = handling.rows.filter((p) =>
-    p.name !== "Unassigned" && p.total > total * 0.4
+    p.name !== "Unassigned" && total > 0 && p.total > total * 0.4
   );
   const hold = value(
     Object.entries(pipeline).find(([key]) => key.toLowerCase() === "on hold")

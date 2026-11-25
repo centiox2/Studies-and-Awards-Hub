@@ -1,3 +1,5 @@
+import 'spreadsheet_text.dart';
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -57,7 +59,7 @@ Uint8List reportToExcel(
             ? IntCellValue(v)
             : v is double
             ? DoubleCellValue(v)
-            : TextCellValue('${v ?? ''}'),
+            : spreadsheetText(v),
         cellStyle: style,
       );
     }

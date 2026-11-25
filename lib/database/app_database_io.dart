@@ -5,6 +5,23 @@ import 'package:sqlite3/sqlite3.dart';
 
 import 'database.dart';
 
+String platformDataDirectory(String support) {
+  final local = Platform.isWindows
+      ? Platform.environment['LOCALAPPDATA']
+      : null;
+  return local != null && p.isAbsolute(local)
+      ? p.join(local, 'Studies and Awards', 'ClientTracker')
+      : p.join(support, 'ClientTracker');
+}
+
+/// Move the entire directory so the live database and its WAL stay together.
+void migratePlatformDatabaseDirectory(String legacy, String target) {
+  final source = Directory(legacy);
+  if (!source.existsSync() || Directory(target).existsSync()) return;
+  Directory(p.dirname(target)).createSync(recursive: true);
+  source.renameSync(target);
+}
+
 /// Opens the SQLite database on io platforms (Windows, Android, iOS).
 /// Exposed through a conditional import in `database_bootstrap.dart`.
 AppDatabase openPlatformDatabase(String directory) {
@@ -18,7 +35,23 @@ AppDatabase openPlatformDatabase(String directory) {
     raw.execute('PRAGMA journal_mode = WAL;');
     raw.execute('PRAGMA foreign_keys = ON;');
     raw.execute('PRAGMA busy_timeout = 5000;');
+    final hasSignIns = raw
+        .select(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_signins';",
+        )
+        .isNotEmpty;
+    final hadPlaintextTokens =
+        hasSignIns &&
+        raw
+            .select(
+              'SELECT 1 FROM user_signins WHERE token IS NOT NULL LIMIT 1;',
+            )
+            .isNotEmpty;
     AppDatabase.migrate(raw);
+    if (hadPlaintextTokens) {
+      raw.execute('VACUUM;');
+      raw.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+    }
     AppDatabase.seedStaff(raw);
     return AppDatabase.internal(dbPath, raw);
   } catch (e) {
@@ -39,6 +72,7 @@ void makeRollingBackup(String dbPath) {
   final tmp = '$dbPath.bak.tmp';
   try {
     if (!File(dbPath).existsSync()) return;
+    _scrubOldBackups(dbPath);
     _deleteQuietly(tmp);
     final src = sqlite3.open(dbPath);
     try {
@@ -57,7 +91,6 @@ void makeRollingBackup(String dbPath) {
     }
     File(tmp).copySync('$dbPath.bak1');
     _deleteQuietly(tmp);
-    _scrubOldBackups(dbPath);
   } catch (_) {
     _deleteQuietly(tmp);
   }
@@ -69,13 +102,15 @@ bool scrubSignIns(String path) {
   try {
     final db = sqlite3.open(path);
     try {
-      final has = db.select(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' "
-        "AND name = 'user_signins';",
+      final tables = db.select(
+        "SELECT name FROM sqlite_master WHERE type = 'table' "
+        "AND name IN ('user_signins', 'app_accounts', 'profile_passwords');",
       );
-      if (has.isEmpty) return true;
+      if (tables.isEmpty) return true;
       db.execute('PRAGMA secure_delete = ON;');
-      db.execute('DELETE FROM user_signins;');
+      for (final table in tables) {
+        db.execute('DELETE FROM ${table['name']};');
+      }
       db.execute('VACUUM;');
       return true;
     } finally {
@@ -88,10 +123,10 @@ bool scrubSignIns(String path) {
 
 /// Copies made before sign-ins were taken out: cleaned once.
 void _scrubOldBackups(String dbPath) {
-  final marker = File('$dbPath.bak.clean');
+  final marker = File('$dbPath.bak.clean.v2');
   if (marker.existsSync()) return;
   var all = true;
-  for (var i = 2; i <= AppDatabase.rollingBackupCount; i++) {
+  for (var i = 1; i <= AppDatabase.rollingBackupCount; i++) {
     final f = File('$dbPath.bak$i');
     if (f.existsSync() && !scrubSignIns(f.path)) all = false;
   }

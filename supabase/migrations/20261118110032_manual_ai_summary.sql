@@ -33,7 +33,7 @@ begin
  if not exists(select 1 from vault.decrypted_secrets where id=c.key_id) then raise exception 'gemini_key_required'; end if;
  insert into private.ai_summary_jobs(summary_date,source,requested_by,lease_until,status)
  values(private.today(),'manual',private.token_user(p_token),now()+interval '4 minutes','queued') returning id into job;
- perform net.http_post(url:='https://dpmluuckgstycdctqwym.supabase.co/functions/v1/daily-ai-summary',
+ perform net.http_post(url:=private.ai_summary_dispatch_url(),
  headers:=jsonb_build_object('Content-Type','application/json','x-summary-job-token',secret),
  body:=jsonb_build_object('manual_job_id',job),timeout_milliseconds:=180000);
  return jsonb_build_object('status','queued','job_id',job);

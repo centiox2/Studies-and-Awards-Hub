@@ -1003,14 +1003,12 @@ class _AutoBackupSection extends ConsumerWidget {
       title: 'Automatic backups',
       icon: Icons.schedule,
       description: browser
-          ? 'A copy is kept inside this browser every day the app is used '
-                '(the last ${state.keep}). It protects against mistakes, not '
-                'against clearing the browser — keep saving backup files too.'
+          ? 'Use Save backup to download a copy of your data.'
           : 'A backup is saved automatically every day the app is used, '
                 'keeping the last ${state.keep} days.',
       child: !state.loaded
           ? const SizedBox(height: 20)
-          : !state.enabled
+          : !state.enabled && state.entries.isEmpty
           ? Text('Automatic backups are off on this device.', style: muted)
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1028,23 +1026,24 @@ class _AutoBackupSection extends ConsumerWidget {
                   spacing: Dt.s8,
                   runSpacing: Dt.s8,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final ok = await controller.backupNow();
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              ok
-                                  ? 'Backup saved'
-                                  : 'Couldn’t save the backup here',
+                    if (state.enabled)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final ok = await controller.backupNow();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                ok
+                                    ? 'Backup saved'
+                                    : 'Couldn’t save the backup here',
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.save_outlined, size: 16),
-                      label: const Text('Back up now'),
-                    ),
+                          );
+                        },
+                        icon: const Icon(Icons.save_outlined, size: 16),
+                        label: const Text('Back up now'),
+                      ),
                     if (state.canChooseFolder)
                       OutlinedButton.icon(
                         onPressed: controller.chooseFolder,

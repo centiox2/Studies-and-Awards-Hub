@@ -116,16 +116,10 @@ void main() {
             pages: {},
           ),
         );
-    expect(container.read(availableAppTabsProvider), [
-      AppTab.todo,
-      AppTab.settings,
-    ]);
-    expect(container.read(mobileBarTabsProvider), [
-      AppTab.todo,
-      AppTab.settings,
-    ]);
+    expect(container.read(availableAppTabsProvider), [AppTab.settings]);
+    expect(container.read(mobileBarTabsProvider), [AppTab.settings]);
 
-    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
@@ -143,12 +137,13 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pumpAndSettle();
-      expect(find.byType(Dialog), findsOneWidget);
-      expect(find.text('New week…'), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('New week…'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
