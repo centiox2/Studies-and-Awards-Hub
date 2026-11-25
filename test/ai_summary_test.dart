@@ -124,7 +124,7 @@ Map<String, dynamic> templateFixture() {
   final report = (data['summaries'] as List).first as Map;
   (report['content'] as Map)['template'] = {
     'version': 1,
-    'meta': 'Thursday, 19 November 2026 · Data as of 1:08 PM EAT',
+    'meta': 'Wednesday, 18 November 2026 · Data as of 5:05 PM EAT',
     'quick': [
       {'kind': 'heading', 'text': 'Today at a Glance'},
       {
@@ -136,20 +136,76 @@ Map<String, dynamic> templateFixture() {
       },
     ],
     'detailed': [
-      {'kind': 'heading', 'text': '6. Who Is Handling Applications'},
+      {'kind': 'heading', 'text': '1. Summary'},
+      {
+        'kind': 'table',
+        'columns': ['Measure', 'Today'],
+        'rows': [
+          ['Clients served', '5 (1 new, 4 existing)'],
+          ['Net revenue', 'KSh 1,200.50'],
+          ['Applications with logged updates', '3'],
+          ['Staff with recorded activity', '2 of 6'],
+          ['Daily reports submitted', '5'],
+          ['Team to-do items completed', '9'],
+        ],
+      },
+      {'kind': 'heading', 'text': '2. Needs Attention'},
+      {
+        'kind': 'bullets',
+        'items': ['2 applications are unassigned (33% of 6).'],
+      },
+      {'kind': 'heading', 'text': '7. Pipeline Overview'},
+      {'kind': 'text', 'text': '6 applications in the tracker'},
+      {
+        'kind': 'table',
+        'columns': ['Status', 'Applications'],
+        'rows': [
+          ['Visa Granted', '2'],
+          ['On hold', '3'],
+          ['Withdrawn', '1'],
+        ],
+      },
+      {'kind': 'heading', 'text': '8. Staff Activity'},
       {
         'kind': 'table',
         'columns': [
-          'Assignee',
-          'Total records',
-          'Updated today',
-          'Status changes',
-          'New COE dates',
+          'Staff member',
+          'New',
+          'Existing',
+          'Total clients',
+          'Work items updated',
+          'Reports submitted',
         ],
         'rows': [
-          ['Taylor Example', '4', '2', '1', '1'],
+          ['Taylor Example', '1', '4', '5', '1', '7'],
         ],
       },
+      {'kind': 'heading', 'text': '5. Application Activity Today'},
+      {
+        'kind': 'table',
+        'columns': ['Time (EAT)', 'Client', 'Changed by', 'From', 'To'],
+        'rows': [
+          [
+            '12:30 PM (detected)',
+            'Sample Client',
+            'Example Editor',
+            'On hold',
+            'Visa Granted',
+          ],
+        ],
+      },
+      {'kind': 'label', 'text': 'Milestones and dates'},
+      {
+        'kind': 'table',
+        'columns': ['Item', 'Applications'],
+        'rows': [
+          ['New COE dates', '2'],
+        ],
+      },
+      {'kind': 'heading', 'text': '9. Daily Reports and To-Dos'},
+      {'kind': 'text', 'text': '5 daily reports submitted'},
+      {'kind': 'heading', 'text': '10. Data Notes'},
+      {'kind': 'text', 'text': 'Figures reflect the report cutoff.'},
     ],
   };
   return data;
@@ -548,7 +604,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ClarityCard), findsOneWidget);
       expect(find.text('1. Weekly tracker'), findsOneWidget);
-      expect(find.text('6. Staff'), findsOneWidget);
+      expect(find.text('4. Staff'), findsOneWidget);
+      expect(find.textContaining('Daily reports'), findsNothing);
       expect(find.text('Taylor Example'), findsOneWidget);
       expect(find.text('Applications submitted'), findsOneWidget);
       expect(find.text('9. Settings'), findsNothing);
@@ -565,7 +622,7 @@ void main() {
     },
   );
   testWidgets(
-    'templated reports show Quick View and the assignee table at large text',
+    'saved reports use the mobile index and hide removed fields at large text',
     (tester) async {
       tester.view.physicalSize = const Size(320, 720);
       tester.view.devicePixelRatio = 1;
@@ -585,13 +642,52 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Quick View'), findsOneWidget);
       expect(find.text('KSh 1,200.50'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('report-detailed-view')));
+      final details = find.byKey(const ValueKey('report-detailed-view'));
+      await tester.ensureVisible(details);
       await tester.pumpAndSettle();
-      expect(find.text('6. Who Is Handling Applications'), findsOneWidget);
+      await tester.tap(details);
+      await tester.pumpAndSettle();
+      final index = find.byKey(const ValueKey('report-section-index'));
+      await tester.drag(
+        find.byKey(const ValueKey('report-reading-column')),
+        const Offset(0, -640),
+      );
+      await tester.pumpAndSettle();
+      expect(index.hitTestable(), findsOneWidget);
       expect(find.text('Taylor Example'), findsOneWidget);
+      expect(find.text('Example Editor'), findsNothing);
+      expect(find.text('Daily reports submitted'), findsNothing);
+      expect(find.text('Reports submitted'), findsNothing);
+      expect(find.text('Team to-do items completed'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('desktop report index scrolls and selects its section', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          aiSummaryAccessProvider.overrideWith((ref) async => true),
+          aiSummariesProvider.overrideWith((ref) async => templateFixture()),
+        ],
+        child: const MaterialApp(home: Scaffold(body: AiSummaryScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('report-detailed-view')));
+    await tester.pumpAndSettle();
+    final jump = find.byKey(const ValueKey('report-jump-Status changes today'));
+    expect(jump.hitTestable(), findsOneWidget);
+    await tester.tap(jump);
+    await tester.pumpAndSettle();
+    expect(find.text('Sample Client').hitTestable(), findsOneWidget);
+    expect(jump.hitTestable(), findsOneWidget);
+  });
+
   testWidgets(
     'Desktop navigation updates when AI access arrives asynchronously',
     (tester) async {

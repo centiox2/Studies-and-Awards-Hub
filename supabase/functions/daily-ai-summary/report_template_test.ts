@@ -103,31 +103,22 @@ Deno.test("template keeps exact sections, recorded amounts, flags and assignee s
   assert.deepEqual(headings(detailed), [
     "1. Summary",
     "2. Needs Attention",
-    "3. Clients",
-    "4. Revenue",
-    "5. Application Activity Today",
-    "6. Who Is Handling Applications",
-    "7. Pipeline Overview",
-    "8. Staff Activity",
-    "9. Daily Reports and To-Dos",
-    "10. Data Notes",
+    "3. Pipeline Overview",
+    "4. Staff Activity",
+    "5. Status Changes Today",
+    "6. Milestones and Dates",
+    "7. Data Notes",
   ]);
   assert.match(
     meta,
     /Thursday, 19 November 2026 · Data as of 1:08 PM EAT \(Midday snapshot\)/,
   );
   assert.equal(quick.filter((block) => block.kind === "table").length, 2);
-  const assigned = detailed.find((block) =>
-    block.kind === "table" && block.columns[0] === "Assignee"
+  assert(
+    !/payment purpose|daily reports|team to-do|Reports submitted|Who Is Handling Applications/i
+      .test(JSON.stringify(output).replaceAll("with no purpose recorded", "")),
   );
-  assert(assigned?.kind === "table");
-  assert.deepEqual(assigned.rows, [["Winnie", "4", "2", "1", "1"], [
-    "Unassigned",
-    "2",
-    "1",
-    "0",
-    "0",
-  ], ["Total", "6", "3", "1", "1"]]);
+  assert.match(JSON.stringify(detailed), /KSh 1,200\.50 gross/);
   const staff = detailed.find((block) =>
     block.kind === "table" && block.columns[0] === "Staff member"
   );
@@ -200,12 +191,13 @@ Deno.test("Gemini selects a recorded movement and receives no staff or payment d
     /2 status changes/,
   );
   assert(table?.kind === "table");
+  assert.deepEqual(table.columns, ["Time (EAT)", "Client", "From", "To"]);
+  assert(!JSON.stringify(output).includes("Example Editor"));
   assert.deepEqual(table.rows, [
-    ["9:03 AM", "Example Client", "Example Editor", "New", "Awaiting CAS"],
+    ["9:03 AM", "Example Client", "New", "Awaiting CAS"],
     [
       "12:03 PM (detected)",
       "Example Client",
-      "Not recorded",
       "Awaiting CAS",
       "Visa Granted",
     ],

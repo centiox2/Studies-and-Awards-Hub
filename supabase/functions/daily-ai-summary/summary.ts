@@ -2,8 +2,6 @@ export const pages = [
   "weekly_tracker",
   "revenue",
   "applications",
-  "daily_reports",
-  "team_todo",
   "staff",
 ];
 export const schema = {

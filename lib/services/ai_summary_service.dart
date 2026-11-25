@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import '../state/cloud_sync.dart';
+import 'app_diagnostic_log.dart';
 
 final aiSummaryServiceProvider = Provider(
   (ref) => AiSummaryService(
@@ -19,8 +20,20 @@ class AiSummaryService {
       Map<String, dynamic>.from(await call('ai_summary_read') as Map);
   Future<Map<String, dynamic>> settings() async =>
       Map<String, dynamic>.from(await call('ai_summary_settings') as Map);
-  Future<Map<String, dynamic>> generate() async =>
-      Map<String, dynamic>.from(await call('ai_summary_generate') as Map);
+  Future<Map<String, dynamic>> generate() async {
+    AppDiagnosticLog.record(DiagnosticEvent.reportRequested);
+    try {
+      final result = Map<String, dynamic>.from(
+        await call('ai_summary_generate') as Map,
+      );
+      AppDiagnosticLog.record(DiagnosticEvent.reportQueued);
+      return result;
+    } catch (_) {
+      AppDiagnosticLog.record(DiagnosticEvent.reportRequestFailed);
+      rethrow;
+    }
+  }
+
   Future<void> save({
     required bool enabled,
     required String model,

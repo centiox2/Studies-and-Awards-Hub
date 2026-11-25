@@ -292,4 +292,13 @@ AI reports now default to `gemini-3.5-flash-lite`, verified with this project’
 
 The Staff section lists people with recorded client counts, work-item activity, or report submissions that day, including configured output totals. Named activity is shown to authorized report readers and excluded from Gemini input.
 
-The report opens in **Quick View**. **Detailed report** shows the ten template sections, including the day's application status history, handlers and recorded staff activity. Both views use the same database snapshot. When several application movements qualify for the brief, Gemini chooses among the recorded facts. A single qualifying movement can be used directly. Older reports retain their original Summary and Detailed report views.
+The report opens in **Quick View**. **Detailed report** has a navigable section index with a pipeline chart, recorded staff work, status history and milestones. The status history shows the client, time and transition. Both views use the same database snapshot. When several application movements qualify for the brief, Gemini chooses among the recorded facts. A single qualifying movement can be used directly. Older reports retain their original Summary and Detailed report views.
+
+## Device diagnostics
+
+Open **Settings → About → Diagnostic log** to inspect the last 160 recorded
+startup, navigation, cloud-sync and AI-report events. Use **Errors only** or
+**Copy log** to share the relevant entries. Unexpected Dart and Flutter errors
+include the exception type and available app stack frames. The log stores no
+request payloads, credentials or record contents. An abrupt OS termination
+can leave only the events recorded before the process stopped.

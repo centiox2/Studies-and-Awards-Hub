@@ -31,6 +31,8 @@ class ReportDocument extends StatelessWidget {
             'history',
             'reports',
             'settings',
+            'daily_reports',
+            'team_todo',
           }.contains(_sectionPage(section)),
         )
         .toList();
@@ -389,7 +391,6 @@ class _StaffActivity extends StatelessWidget {
                     ('new_clients', 'New clients'),
                     ('existing_clients', 'Existing clients'),
                     ('work_items_updated', 'Work items updated'),
-                    ('reports_submitted', 'Reports submitted'),
                   ])
                     if (person[key] is num && (person[key] as num) > 0)
                       (label, _count(person[key])),
@@ -493,13 +494,6 @@ List<(String, String)> _facts(String page, Map snapshot) {
       'with_offer': 'With an offer',
       'with_coe': 'With a COE',
     },
-    'daily_reports' => {
-      'submitted_today': 'Submitted today',
-      'open': 'Open work',
-      'blocked': 'Blocked',
-      'overdue': 'Overdue',
-    },
-    'team_todo' => {'open': 'Open team items', 'done': 'Completed team items'},
     'staff' => {'active': 'Active staff', 'total': 'Total staff'},
     _ => <String, String>{},
   };

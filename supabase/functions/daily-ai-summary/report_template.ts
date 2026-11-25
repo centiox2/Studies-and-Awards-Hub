@@ -1,5 +1,3 @@
-import { pages } from "./summary.ts";
-
 type Data = Record<string, unknown>;
 type Block =
   | { kind: "heading" | "label" | "text"; text: string }
@@ -55,20 +53,6 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
   month: "long",
   year: "numeric",
 });
-const dateShort = new Intl.DateTimeFormat("en-GB", {
-  ...nairobi,
-  day: "numeric",
-  month: "short",
-});
-const dayFormat = new Intl.DateTimeFormat("en-GB", {
-  ...nairobi,
-  day: "numeric",
-});
-const monthFormat = new Intl.DateTimeFormat("en-GB", {
-  ...nairobi,
-  month: "short",
-  year: "numeric",
-});
 const clock = new Intl.DateTimeFormat("en-KE", {
   ...nairobi,
   hour: "numeric",
@@ -80,13 +64,6 @@ const hour = new Intl.DateTimeFormat("en-GB", {
   hour: "numeric",
   hourCycle: "h23",
 });
-
-function dateRange(start: Date | null, end: Date | null) {
-  if (!start || !end) return "—";
-  return monthFormat.format(start) === monthFormat.format(end)
-    ? `${dayFormat.format(start)}–${dateShort.format(end)}`
-    : `${dateShort.format(start)}–${dateShort.format(end)}`;
-}
 
 function normalizedName(name: string) {
   const normalized = name.toLowerCase();
@@ -200,7 +177,7 @@ export function templateSelection(snapshot: unknown) {
     movements.push(
       `${
         plural(value(updates.follow_ups_updated), "application")
-      } had a to-do or follow-up update.`,
+      } had a follow-up update.`,
     );
   }
   if (!movements.length) {
@@ -230,10 +207,12 @@ export function buildTemplateReport(
   const applications = map(data.applications);
   const updates = map(applications.updates_today);
   const pipeline = map(applications.by_status);
-  const daily = map(data.daily_reports);
-  const team = map(data.team_todo);
   const staff = map(data.staff);
-  const people = list(staff.activity);
+  const people = list(staff.activity).filter((person) =>
+    value(person.new_clients) > 0 || value(person.existing_clients) > 0 ||
+    value(person.work_items_updated) > 0 ||
+    list(person.outputs).some((output) => value(output.count) > 0)
+  );
   const week = map(facts.week);
   const purposes = list(facts.purposes);
   const milestones = map(facts.milestones);
@@ -301,16 +280,6 @@ export function buildTemplateReport(
     ) && value(amount) > 0
   );
   const flags: string[] = [];
-  if (value(daily.overdue) || value(daily.blocked)) {
-    flags.push(
-      `${count(daily.overdue)} overdue · ${
-        count(daily.blocked)
-      } blocked work items.`,
-    );
-  }
-  if (daily.submitted_today === 0) {
-    flags.push("0 daily reports submitted so far.");
-  }
   if (unassigned && total && unassigned.total > 0) {
     flags.push(
       `${count(unassigned.total)} applications are unassigned (${
@@ -362,7 +331,7 @@ export function buildTemplateReport(
     flags.push(
       `${
         count(updates.follow_ups_updated)
-      } applications had to-do or follow-up updates and ${
+      } applications had follow-up updates and ${
         count(updates.statuses_changed)
       } changed status.`,
     );
@@ -379,9 +348,6 @@ export function buildTemplateReport(
     selection.movements[movementIndex]
   }`;
   const staffCount = `${count(people.length)} of ${count(staff.active)}`;
-  const teamLine = `${staffCount} staff recorded activity · ${
-    count(daily.submitted_today)
-  } daily reports submitted`;
   const quick: Block[] = [
     heading("Today at a Glance"),
     table(["Clients", "Net Revenue", "Applications Updated"], [
@@ -417,11 +383,10 @@ export function buildTemplateReport(
     heading("Needs Attention"),
     bullets(flags.slice(0, 4), "Nothing needs attention."),
     heading("Team Today"),
-    line(teamLine),
+    line(`${staffCount} staff recorded activity`),
   ];
   const detailed: Block[] = [
     heading("1. Summary"),
-    line(brief),
     pairTable("Measure", "Today", [
       [
         "Clients served",
@@ -430,58 +395,63 @@ export function buildTemplateReport(
         } existing)`,
       ],
       ["Net revenue", money(revenue.today_cents)],
+      [
+        "Revenue details",
+        [
+          `${plural(payments, "payment")} · ${plural(refunds, "refund")}`,
+          `${money(sum(purposes, "gross_cents"))} gross · ${
+            money(sum(purposes, "refunded_cents"))
+          } refunded`,
+          `${money(revenue.month_net_cents)} month to date`,
+        ].join("\n"),
+      ],
       ["Applications with logged updates", count(updates.applications_touched)],
       ["Staff with recorded activity", staffCount],
-      ["Daily reports submitted", count(daily.submitted_today)],
-      ["Team to-do items completed", count(facts.shared_done_today)],
     ]),
     heading("2. Needs Attention"),
     bullets(detailedFlags, "Nothing needs attention."),
-    heading("3. Clients"),
-    table(["Period", "New", "Existing", "Total"], [
-      [
-        "Today",
-        count(clients.today_new),
-        count(clients.today_existing),
-        count(clients.today),
-      ],
-      [
-        `Week to date (${dateRange(dateAt(week.start), today)})`,
-        count(week.new),
-        count(week.existing),
-        count(value(week.new) + value(week.existing)),
-      ],
-      [
-        `Month to date (${
-          dateRange(dateAt(`${String(data.date).slice(0, 7)}-01`), today)
-        })`,
-        count(clients.month_new),
-        count(clients.month_existing),
-        count(clients.month_total),
-      ],
-    ]),
+    heading("3. Pipeline Overview"),
     line(
-      `Week figures cover ${
-        plural(value(week.days), "day")
-      } with client counts.`,
+      `${count(applications.total)} applications in the tracker · ${
+        count(applications.with_offer)
+      } with an offer date · ${count(applications.with_coe)} with a COE date`,
     ),
-    heading("4. Revenue"),
-    pairTable("Measure", "Amount", [
-      ["Payments recorded", count(payments)],
-      ["Refunds recorded", count(refunds)],
-      ["Gross receipts today", money(sum(purposes, "gross_cents"))],
-      ["Refunded today", money(sum(purposes, "refunded_cents"))],
-      ["Net revenue today", money(revenue.today_cents)],
-      ["Net revenue month to date", money(revenue.month_net_cents)],
-    ]),
-    label("By payment purpose"),
+    pairTable(
+      "Status",
+      "Applications",
+      Object.entries(pipeline).sort((a, b) =>
+        value(b[1]) - value(a[1]) || a[0].localeCompare(b[0])
+      ).map(([status, amount]) => [displayStatus(status), count(amount)]),
+    ),
+    heading("4. Staff Activity"),
     table(
-      ["Purpose", "Entries", "Net revenue"],
-      purposes.map((
-        p,
-      ) => [text(p.purpose), count(p.entries), money(p.net_cents)]),
+      [
+        "Staff member",
+        "New",
+        "Existing",
+        "Total clients",
+        "Work items updated",
+      ],
+      people.map((
+        person,
+      ) => [
+        nameFor(person.name),
+        count(person.new_clients),
+        count(person.existing_clients),
+        count(value(person.new_clients) + value(person.existing_clients)),
+        count(person.work_items_updated),
+      ]),
     ),
-    heading("5. Application Activity Today"),
+    ...(staffOutputs.length
+      ? [label("Reported outputs"), {
+        kind: "bullets" as const,
+        items: staffOutputs,
+      }]
+      : []),
+    line(
+      "Activity is based on recorded client counts and work updates.",
+    ),
+    heading("5. Status Changes Today"),
     label(
       `Status changes (${
         count(hasStatusEvents ? statusEvents.length : updates.statuses_changed)
@@ -489,7 +459,7 @@ export function buildTemplateReport(
     ),
     hasStatusEvents
       ? table(
-        ["Time (EAT)", "Client", "Changed by", "From", "To"],
+        ["Time (EAT)", "Client", "From", "To"],
         statusEvents.map((event) => {
           const at = dateAt(event.at);
           return [
@@ -499,7 +469,6 @@ export function buildTemplateReport(
               }`
               : "—",
             text(event.client),
-            event.changed_by ? text(event.changed_by) : "Not recorded",
             displayStatus(text(event.from)),
             displayStatus(text(event.to)),
           ];
@@ -524,7 +493,7 @@ export function buildTemplateReport(
         ),
       ]
       : []),
-    label("Milestones and dates"),
+    heading("6. Milestones and Dates"),
     pairTable("Item", "Applications", [
       ["COE dates newly logged", count(updates.coes_logged)],
       ["COE issued (dated today)", count(milestones.coes_issued)],
@@ -543,97 +512,10 @@ export function buildTemplateReport(
     label("Records updated"),
     pairTable("Update type", "Applications", [
       ["Any logged update", count(updates.applications_touched)],
-      ["To-do or follow-up updates", count(updates.follow_ups_updated)],
+      ["Follow-up updates", count(updates.follow_ups_updated)],
       ["Status changed", count(updates.statuses_changed)],
     ]),
-    heading("6. Who Is Handling Applications"),
-    table([
-      "Assignee",
-      "Total records",
-      "Updated today",
-      "Applications with status changes",
-      "New COE dates",
-    ], [
-      ...handling.rows.map((
-        p,
-      ) => [
-        p.name,
-        count(p.total),
-        count(p.updated),
-        count(p.statuses),
-        count(p.coes),
-      ]),
-      [
-        "Total",
-        count(applications.total),
-        count(updates.applications_touched),
-        count(updates.statuses_changed),
-        count(updates.coes_logged),
-      ],
-    ], true),
-    ...(reassigned
-      ? [line(`Reassignment recorded today · ${reassigned}.`)]
-      : unassigned?.total
-      ? [
-        line(
-          `${count(unassigned.total)} current applications have no assignee.`,
-        ),
-      ]
-      : []),
-    heading("7. Pipeline Overview"),
-    line(
-      `${count(applications.total)} applications in the tracker · ${
-        count(applications.with_offer)
-      } with an offer date · ${count(applications.with_coe)} with a COE date`,
-    ),
-    pairTable(
-      "Status",
-      "Applications",
-      Object.entries(pipeline).sort((a, b) =>
-        value(b[1]) - value(a[1]) || a[0].localeCompare(b[0])
-      ).map(([status, amount]) => [displayStatus(status), count(amount)]),
-    ),
-    heading("8. Staff Activity"),
-    table(
-      [
-        "Staff member",
-        "New",
-        "Existing",
-        "Total clients",
-        "Work items updated",
-        "Reports submitted",
-      ],
-      people.map((
-        person,
-      ) => [
-        nameFor(person.name),
-        count(person.new_clients),
-        count(person.existing_clients),
-        count(value(person.new_clients) + value(person.existing_clients)),
-        count(person.work_items_updated),
-        count(person.reports_submitted),
-      ]),
-    ),
-    ...(staffOutputs.length
-      ? [label("Reported outputs"), {
-        kind: "bullets" as const,
-        items: staffOutputs,
-      }]
-      : []),
-    line(
-      "Based on recorded client counts and daily report activity. Missing entries do not show how anyone spent their day.",
-    ),
-    heading("9. Daily Reports and To-Dos"),
-    pairTable("Measure", "Count", [
-      ["Work items dated today", count(daily.today)],
-      ["Reports submitted today", count(daily.submitted_today)],
-      ["Open items (today or earlier)", count(daily.open)],
-      ["Blocked items", count(daily.blocked)],
-      ["Overdue items", count(daily.overdue)],
-      ["Open shared team to-dos", count(team.open)],
-      ["Shared to-dos completed today", count(facts.shared_done_today)],
-    ]),
-    heading("10. Data Notes"),
+    heading("7. Data Notes"),
     bullets(
       [
         `${snapshotLabel} at ${time}. Figures reflect records available at the cutoff.`,
@@ -654,8 +536,12 @@ export function buildTemplateReport(
       "—",
     ),
   ];
-  // Legacy clients still receive their familiar summary fields and factual sections.
-  const legacy = [3, 4, 5, 9, 9, 8].map((index, i) => {
+  const legacyPages = [
+    [1, "weekly_tracker"],
+    [3, "applications"],
+    [4, "staff"],
+  ] as const;
+  const legacy = legacyPages.map(([index, page]) => {
     const start = detailed.findIndex((block) =>
       block.kind === "heading" && block.text.startsWith(`${index}. `)
     );
@@ -675,7 +561,7 @@ export function buildTemplateReport(
       }
     }
     return {
-      page: pages[i],
+      page,
       title,
       body: body.join("\n").slice(0, 3000),
       findings: [],
@@ -687,7 +573,18 @@ export function buildTemplateReport(
     highlights: selection.wins,
     risks: flags.slice(0, 5),
     actions: [],
-    sections: legacy,
+    sections: [
+      ...legacy,
+      {
+        page: "revenue",
+        title: "Revenue",
+        body: `${money(revenue.today_cents)} net revenue today · ${
+          money(revenue.month_net_cents)
+        } month to date`,
+        findings: [],
+        next_steps: [],
+      },
+    ],
     template: { version: 1, meta, quick, detailed },
   };
 }

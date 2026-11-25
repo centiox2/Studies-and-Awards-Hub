@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../design/app_theme.dart';
 import '../../services/ai_summary_service.dart';
+import '../../services/app_diagnostic_log.dart';
 import '../../services/cloud/cloud_api.dart';
 import '../../state/app_state.dart';
 import '../../widgets/clarity.dart';
@@ -106,6 +108,16 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
         ),
       );
     }
+    ref.listen(aiSummariesProvider, (before, after) {
+      final previous = before?.value?['status'];
+      final current = after.value?['status'];
+      if (!const {'queued', 'running'}.contains(previous)) return;
+      if (current == 'ready') {
+        AppDiagnosticLog.record(DiagnosticEvent.reportReady);
+      } else if (current == 'failed') {
+        AppDiagnosticLog.record(DiagnosticEvent.reportFailed);
+      }
+    });
     return ref
         .watch(aiSummariesProvider)
         .when(
@@ -130,68 +142,53 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
             final content = row?['content'] as Map?;
             final template = content?['template'];
             final hasTemplate = template is Map && template['version'] == 1;
+            final header = _ReportHeader(
+              data: data,
+              rows: rows,
+              date: row?['summary_date']?.toString(),
+              meta: hasTemplate
+                  ? template['meta']?.toString()
+                  : row == null
+                  ? null
+                  : _stamp(row['cutoff_at']),
+              detailed: detailed,
+              hasTemplate: hasTemplate,
+              onView: (value) => setState(() => detailed = value),
+              onDate: (value) => setState(() => selected = value),
+              onRequested: () => setState(() => selected = null),
+            );
+            if (hasTemplate) {
+              return TemplateReportDocument(
+                template: template,
+                detailed: detailed,
+                header: header,
+              );
+            }
             return ListView(
               padding: EdgeInsets.fromLTRB(
                 clarityHPad(context),
-                16,
+                20,
                 clarityHPad(context),
                 24,
               ),
               children: [
                 Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1040),
+                    constraints: const BoxConstraints(maxWidth: 960),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(summaryStatus(data)),
-                        const SizedBox(height: 12),
-                        _ReportToolbar(
-                          data: data,
-                          rows: rows,
-                          date: row?['summary_date']?.toString(),
-                          onDate: (value) => setState(() => selected = value),
-                          onRequested: () => setState(() => selected = null),
-                        ),
-                        if (content != null) ...[
-                          const SizedBox(height: 20),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              ChoiceChip(
-                                key: const ValueKey('report-summary-view'),
-                                label: Text(
-                                  hasTemplate ? 'Quick View' : 'Summary',
-                                ),
-                                selected: !detailed,
-                                onSelected: (_) =>
-                                    setState(() => detailed = false),
-                              ),
-                              ChoiceChip(
-                                key: const ValueKey('report-detailed-view'),
-                                label: const Text('Detailed report'),
-                                selected: detailed,
-                                onSelected: (_) =>
-                                    setState(() => detailed = true),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          if (hasTemplate)
-                            TemplateReportDocument(
-                              template: template,
-                              detailed: detailed,
-                            )
-                          else
-                            ReportDocument(
-                              row: row!,
-                              detailed: detailed,
-                              cutoffLabel: _stamp(row['cutoff_at']),
-                            ),
-                        ] else
+                        header,
+                        const SizedBox(height: 16),
+                        if (row != null && content != null)
+                          ReportDocument(
+                            row: row,
+                            detailed: detailed,
+                            cutoffLabel: _stamp(row['cutoff_at']),
+                          )
+                        else
                           const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 32),
+                            padding: EdgeInsets.symmetric(vertical: 24),
                             child: Text('No reports yet.'),
                           ),
                       ],
@@ -205,49 +202,133 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
   }
 }
 
-class _ReportToolbar extends StatelessWidget {
-  const _ReportToolbar({
+class _ReportHeader extends StatelessWidget {
+  const _ReportHeader({
     required this.data,
     required this.rows,
     required this.date,
+    required this.meta,
+    required this.detailed,
+    required this.hasTemplate,
+    required this.onView,
     required this.onDate,
     required this.onRequested,
   });
   final Map<String, dynamic> data;
   final List<Map> rows;
   final String? date;
+  final String? meta;
+  final bool detailed;
+  final bool hasTemplate;
+  final ValueChanged<bool> onView;
   final ValueChanged<String?> onDate;
   final VoidCallback onRequested;
+
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) => Wrap(
-      spacing: 16,
-      runSpacing: 12,
-      crossAxisAlignment: WrapCrossAlignment.center,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = context.clarity;
+    final ready = data['status'] == 'ready';
+    final status = ready && data['enabled'] == true
+        ? 'Scheduled daily at 5:05 pm EAT.'
+        : summaryStatus(data);
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (rows.isNotEmpty)
-          SizedBox(
-            width: box.maxWidth < 600 ? box.maxWidth : 320,
-            child: DropdownButtonFormField<String>(
-              key: ValueKey(date),
-              initialValue: date,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Report date'),
-              items: [
-                for (final row in rows)
-                  DropdownMenuItem(
-                    value: '${row['summary_date']}',
-                    child: Text(_reportDate(row['summary_date'])),
-                  ),
-              ],
-              onChanged: onDate,
-            ),
+        Text(
+          'AI summary',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: MediaQuery.sizeOf(context).width < 480 ? 24 : 28,
           ),
-        if (data['can_generate'] == true)
-          AiGenerateReportButton(data: data, onRequested: onRequested),
+        ),
+        const SizedBox(height: 5),
+        if (meta != null)
+          Text(
+            meta!,
+            style: theme.textTheme.bodySmall?.copyWith(color: colors.textMuted),
+          ),
+        const SizedBox(height: 4),
+        Text(
+          status,
+          style: theme.textTheme.bodySmall?.copyWith(color: colors.textMuted),
+        ),
       ],
-    ),
-  );
+    );
+    return LayoutBuilder(
+      builder: (context, box) {
+        final controls = Wrap(
+          spacing: 8,
+          runSpacing: 7,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (rows.isNotEmpty) ...[
+              SizedBox(
+                width: MediaQuery.textScalerOf(context)
+                    .scale(162)
+                    .clamp(0.0, box.maxWidth),
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey(date),
+                  initialValue: date,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Report date',
+                    isDense: true,
+                  ),
+                  items: [
+                    for (final row in rows)
+                      DropdownMenuItem(
+                        value: '${row['summary_date']}',
+                        child: Text(
+                          _reportDate(row['summary_date']),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: onDate,
+                ),
+              ),
+              ChoiceChip(
+                key: const ValueKey('report-summary-view'),
+                label: Text(hasTemplate ? 'Quick View' : 'Summary'),
+                selected: !detailed,
+                selectedColor: colors.accentSoft,
+                onSelected: (_) => onView(false),
+              ),
+              ChoiceChip(
+                key: const ValueKey('report-detailed-view'),
+                label: const Text('Detailed report'),
+                selected: detailed,
+                selectedColor: colors.accentSoft,
+                onSelected: (_) => onView(true),
+              ),
+            ],
+            if (data['can_generate'] == true)
+              AiGenerateReportButton(data: data, onRequested: onRequested),
+          ],
+        );
+        if (box.maxWidth >= MediaQuery.textScalerOf(context).scale(1000)) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: title),
+              const SizedBox(width: 24),
+              Flexible(
+                flex: 2,
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: controls,
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [title, const SizedBox(height: 12), controls],
+        );
+      },
+    );
+  }
 }
 
 /// Requests a server-side refresh; the key never leaves the server.

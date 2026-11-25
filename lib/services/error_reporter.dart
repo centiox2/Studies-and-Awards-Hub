@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'app_diagnostic_log.dart';
 import 'app_info.dart';
 
 /// Catches unexpected errors anywhere in the app and sends them online
@@ -21,7 +22,11 @@ abstract final class ErrorReporter {
     FlutterError.onError = (details) {
       previous?.call(details);
       // Layout overflows in release are cosmetic; still worth knowing.
-      record(details.exception, details.stack, context: details.context);
+      record(
+        details.exception,
+        details.stack,
+        source: DiagnosticEvent.flutterError,
+      );
     };
     final platformPrevious = PlatformDispatcher.instance.onError;
     PlatformDispatcher.instance.onError = (error, stack) {
@@ -30,25 +35,27 @@ abstract final class ErrorReporter {
     };
   }
 
-  static void record(Object error, StackTrace? stack, {Object? context}) {
-    final message = [
-      error.toString().split('\n').first,
-      if (context != null) '($context)',
-    ].join(' ');
-    final key = '$message|${stack.toString().split('\n').take(3).join()}';
+  static void record(
+    Object error,
+    StackTrace? stack, {
+    DiagnosticEvent source = DiagnosticEvent.unhandledError,
+  }) {
+    final detail = AppDiagnosticLog.describeError(error, stack);
+    AppDiagnosticLog.recordError(source, detail);
+    final key = '${detail.message}|${detail.stack}';
     if (_sent.contains(key) || _sent.length >= _maxPerSession) return;
     _sent.add(key);
     final s = send;
     if (s == null) return;
     unawaited(
-      s({
-        'message': message,
-        'stack': stack == null
-            ? ''
-            : stack.toString().split('\n').take(25).join('\n'),
-        'version': AppInfo.version,
-        'platform': AppInfo.platform,
-      }),
+      Future<void>.sync(
+        () => s({
+          'message': detail.message,
+          'stack': detail.stack,
+          'version': AppInfo.version,
+          'platform': AppInfo.platform,
+        }),
+      ).catchError((Object _) {}),
     );
   }
 

@@ -32,6 +32,7 @@ import 'state/app_state.dart';
 import 'state/mobile_navigation.dart';
 import 'services/auto_backup.dart';
 import 'services/error_reporter.dart';
+import 'services/app_diagnostic_log.dart';
 import 'screens/settings/about_section.dart';
 import 'state/cloud_sync.dart';
 import 'widgets/motion.dart';
@@ -438,7 +439,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   /// Overview draws its own, with its toolbar.
   Widget _withHeader(AppTab tab) {
     final page = _page(tab);
-    if (tab == AppTab.home) return page;
+    if (tab == AppTab.home || tab == AppTab.aiSummary) return page;
     final h = clarityHPad(context);
     final phone = MediaQuery.sizeOf(context).width < 640;
     return Column(
@@ -579,7 +580,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // A message about the page being left (its Undo included) doesn't
     // follow to the next page.
     ref.listen(navTabProvider, (before, after) {
-      if (before != after) ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+      if (before == after) return;
+      AppDiagnosticLog.record(DiagnosticEvent.pageOpened, _activeTab.name);
+      ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+    });
+    ref.listen(cloudSyncProvider.select((state) => state.phase), (
+      before,
+      after,
+    ) {
+      if (before != after) {
+        AppDiagnosticLog.record(DiagnosticEvent.syncChanged, after.name);
+      }
     });
     // A new notification: say so, wherever the person is.
     ref.listen(reportBadgeProvider, (before, after) {

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../design/app_theme.dart';
 import '../../services/account_services.dart';
+import '../../services/app_diagnostic_log.dart';
 import '../../services/app_info.dart';
 import '../../services/cloud/cloud_api.dart' show CloudException;
 import '../../state/app_state.dart';
@@ -608,6 +609,15 @@ class _AboutSectionState extends ConsumerState<AboutSection> {
                   icon: const Icon(Icons.keyboard_outlined),
                   label: const Text('Keyboard shortcuts'),
                 ),
+                OutlinedButton.icon(
+                  key: const ValueKey('open-diagnostic-log'),
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Diagnostic log'),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const _DiagnosticLogDialog(),
+                  ),
+                ),
                 if (widget.online && widget.admin)
                   OutlinedButton.icon(
                     key: const ValueKey('open-activity-log'),
@@ -784,6 +794,101 @@ class _AboutSectionState extends ConsumerState<AboutSection> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DiagnosticLogDialog extends StatefulWidget {
+  const _DiagnosticLogDialog();
+
+  @override
+  State<_DiagnosticLogDialog> createState() => _DiagnosticLogDialogState();
+}
+
+class _DiagnosticLogDialogState extends State<_DiagnosticLogDialog> {
+  bool _errorsOnly = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = AppDiagnosticLog.recent
+        .where((entry) => !_errorsOnly || entry.event.error)
+        .toList();
+    final styles = Theme.of(context).textTheme;
+    final colors = context.clarity;
+    return AlertDialog(
+      title: const Text('Diagnostic log'),
+      content: SizedBox(
+        width: 650,
+        height: MediaQuery.sizeOf(context).height * .5,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ListView.separated(
+                itemCount: entries.length + 1,
+                separatorBuilder: (_, _) => const Divider(),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Recent events stored on this device.'),
+                        FilterChip(
+                          label: const Text('Errors only'),
+                          selected: _errorsOnly,
+                          onSelected: (enabled) =>
+                              setState(() => _errorsOnly = enabled),
+                        ),
+                        if (entries.isEmpty) const Text('No events to show.'),
+                      ],
+                    );
+                  }
+                  final entry = entries[index - 1];
+                  return SelectableText(
+                    entry.asText,
+                    style: styles.bodySmall?.copyWith(
+                      color: entry.event.error
+                          ? colors.negativeFg
+                          : colors.text,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: entries.isEmpty
+              ? null
+              : () async {
+                  try {
+                    await Clipboard.setData(
+                      ClipboardData(
+                        text: entries.map((entry) => entry.asText).join('\n\n'),
+                      ),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Diagnostic log copied')),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not copy the log')),
+                      );
+                    }
+                  }
+                },
+          child: const Text('Copy log'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }

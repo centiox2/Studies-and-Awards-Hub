@@ -6,6 +6,7 @@ import 'services/session_secrets.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +16,7 @@ import 'config/cloud_config.dart';
 import 'database/database_bootstrap.dart';
 import 'design/app_theme.dart';
 import 'repositories/revenue_repository.dart';
+import 'services/app_diagnostic_log.dart';
 import 'services/app_info.dart';
 import 'services/error_reporter.dart';
 import 'state/providers.dart';
@@ -26,7 +28,9 @@ Future<void> main() async {
   CloudConfig.active = CloudConfig.configured;
   // Unexpected errors go online (Settings › Problems); "What's new" after
   // an update.
+  await AppDiagnosticLog.initialize();
   ErrorReporter.install();
+  AppDiagnosticLog.record(DiagnosticEvent.startup, AppInfo.platform);
   AppInfo.showWhatsNew = true;
   // Recorded with each revenue change, so the history says where it came
   // from.
@@ -57,7 +61,9 @@ Future<void> main() async {
       migratePlatformDatabaseDirectory(legacy, dataDir);
     }
     db = await openAppDatabase(dataDir);
-  } catch (e) {
+    AppDiagnosticLog.record(DiagnosticEvent.storageReady);
+  } catch (e, stack) {
+    ErrorReporter.record(e, stack, source: DiagnosticEvent.startupError);
     runApp(_StartupErrorApp(error: e));
     return;
   }
@@ -133,6 +139,18 @@ class _StartupErrorApp extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium
                       ?.copyWith(color: Dt.textMuted(Theme.of(context))),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  label: const Text('Copy diagnostics'),
+                  icon: const Icon(Icons.copy),
+                  onPressed: () => Clipboard.setData(
+                    ClipboardData(
+                      text: AppDiagnosticLog.recent
+                          .map((entry) => entry.asText)
+                          .join('\n\n'),
+                    ),
+                  ),
                 ),
               ],
             ),
