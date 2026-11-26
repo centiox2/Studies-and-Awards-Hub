@@ -2203,7 +2203,7 @@ void main() {
     expect(AppUser.suggestUsername('  Director/Logan '), 'director.logan');
     expect(AppUser.suggestUsername('Morgan Example'), 'morgan.example');
     expect(AppUser.suggestUsername('Jo'), 'jo1');
-    expect(AppUser.suggestUsername('Ellis', taken: ['ellis']), 'joy2');
+    expect(AppUser.suggestUsername('Ellis', taken: ['ellis']), 'ellis2');
     expect(AppUser.suggestUsername('Zoë O’Neil'), 'zoe.oneil');
     for (final n in ['Mary Wanjiku', 'Director/Logan', 'Jo', 'Zoë O’Neil']) {
       expect(
