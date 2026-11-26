@@ -107,7 +107,7 @@ void main() {
     final weeks = WeekRepository(db);
     final w = weeks.createWeekFor(DateTime(2026, 9, 7));
     final day = weeks.getDays(w.id).first;
-    final joy = StaffRepository(db).getAll().firstWhere((s) => s.name == 'Joy');
+    final ellis = StaffRepository(db).getAll().firstWhere((s) => s.name == 'Ellis');
     final counts = ClientCountRepository(db, weekRepository: weeks);
     int lines() =>
         db.raw.select('SELECT COUNT(*) AS c FROM count_changes;').first['c']!
@@ -126,7 +126,7 @@ void main() {
     expect(lines(), before);
     counts.saveCount(
       dayId: day.id,
-      staffId: joy.id,
+      staffId: ellis.id,
       newClients: 3,
       existingClients: 0,
     );

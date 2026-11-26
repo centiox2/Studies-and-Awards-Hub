@@ -52,15 +52,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
-            echo "::error::SUPABASE_URL / SUPABASE_KEY are missing - the app would build without online sync."
-            exit 1
-          fi
-          if ! echo "$SUPABASE_URL" | grep -Eq '^https://[a-z0-9]+\.supabase\.co$'; then
-            echo "::error::SUPABASE_URL should look like https://<ref>.supabase.co (no /rest/v1/)."
-            exit 1
-          fi
+        run: dart run tool/check_public_cloud_config.dart
 
       # The release signing key, from repository secrets (Settings › Secrets
       # and variables › Actions). Every APK is signed with the same key, so

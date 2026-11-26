@@ -44,7 +44,7 @@ const snapshot = {
   staff: {
     active: 8,
     activity: [{
-      name: "Winne",
+      name: "Jordan",
       new_clients: 1,
       existing_clients: 4,
       work_items_updated: 0,
@@ -73,8 +73,8 @@ const snapshot = {
     }],
     status_moves: [{ from: "Awaiting CAS", to: "Visa Granted", count: 1 }],
     assignees: [
-      { label: "Winnie", total: 2, updated: 1, statuses: 1, coes: 1 },
-      { label: "winnie", total: 2, updated: 1, statuses: 0, coes: 0 },
+      { label: "Jordan", total: 2, updated: 1, statuses: 1, coes: 1 },
+      { label: "jordan", total: 2, updated: 1, statuses: 0, coes: 0 },
       { label: "", total: 2, updated: 1, statuses: 0, coes: 0 },
     ],
     milestones: {
@@ -83,7 +83,7 @@ const snapshot = {
       coes_issued: 0,
     },
     reassigned: 1,
-    reassignments: [{ from: "", to: "Winnie", count: 1 }],
+    reassignments: [{ from: "", to: "Jordan", count: 1 }],
     shared_done_today: 0,
   },
 };
@@ -123,9 +123,9 @@ Deno.test("template keeps exact sections, recorded amounts, flags and assignee s
     block.kind === "table" && block.columns[0] === "Staff member"
   );
   assert(staff?.kind === "table");
-  assert.equal(staff.rows[0][0], "Winnie");
-  assert.match(JSON.stringify(detailed), /grouped under Winnie/);
-  assert.match(JSON.stringify(detailed), /Winnie · Interviews booked: 2/);
+  assert.equal(staff.rows[0][0], "Jordan");
+  assert.match(JSON.stringify(detailed), /grouped under Jordan/);
+  assert.match(JSON.stringify(detailed), /Jordan · Interviews booked: 2/);
   assert.match(output.brief, /KSh 1,200\.50/);
   assert.match(output.brief, /Visa Granted/);
   assert(output.risks.some((risk) => risk.includes("33% of 6")));
@@ -163,7 +163,7 @@ Deno.test("Gemini selects a recorded movement and receives no staff or payment d
   }, async (_, request) => {
     const body = String(request?.body);
     assert(
-      !/Winne|Winnie|Interviews booked|Unspecified|120050|Example Client|Example Editor/
+      !/Jordan|Interviews booked|Unspecified|120050|Example Client|Example Editor/
         .test(
           body,
         ),

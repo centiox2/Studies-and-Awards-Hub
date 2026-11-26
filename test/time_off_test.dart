@@ -25,7 +25,7 @@ void main() {
 
   int joyId() =>
       db.raw.select('SELECT id FROM staff WHERE name = ?;', [
-            'Joy',
+            'Ellis',
           ]).first['id']!
           as int;
 
@@ -85,7 +85,7 @@ void main() {
     final staffTotals = counts.staffWeekTotals(weekId);
     final joyTotals = staffTotals.firstWhere(
       (t) => t.staffId == id,
-      orElse: () => throw StateError('Joy not found'),
+      orElse: () => throw StateError('Ellis not found'),
     );
     expect(joyTotals.newClients, 2);
     expect(joyTotals.existingClients, 1);

@@ -78,17 +78,6 @@ class AirtableTags {
     'new zealand': 'cyanBright',
   };
 
-  static const _assignee = {
-    'joy': 'greenBright',
-    'ian': 'yellowBright',
-    'collins': 'orangeDark1',
-    'winnie': 'grayBright',
-    'mourine': 'redBright',
-    'yego': 'blueLight2',
-    'cynthia': 'blueBright',
-    'witney': 'grayLight1',
-  };
-
   /// RTO (school) options, from the Airtable field's colour list.
   static const _rto = {
     'waifs': 'blueLight2',
@@ -232,14 +221,14 @@ class AirtableTags {
   static (Color, Color) status(String v) => _pair(_name(_status, v));
   static (Color, Color) rto(String v) => _pair(_name(_rto, v));
   static (Color, Color) country(String v) => _pair(_name(_country, v));
-  static (Color, Color) assignee(String v) => _pair(_name(_assignee, v));
+  static (Color, Color) assignee(String v) => _pair(_name(const {}, v));
 
   /// The status colour on its own (charts).
   static Color statusColor(String v) => _color(_name(_status, v));
 
   /// An assignee's tag colour, strong enough to read as a bar in a chart
   /// (the palest tags step up one shade, as Airtable's own charts do).
-  static Color assigneeBar(String v) => _bar(_name(_assignee, v));
+  static Color assigneeBar(String v) => _bar(_name(const {}, v));
 
   /// A status's tag colour for a chart bar.
   static Color statusBar(String v) => _bar(_name(_status, v));

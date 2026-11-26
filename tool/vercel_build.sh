@@ -18,6 +18,7 @@ export PATH="$PWD/.flutter/bin:$PATH"
 flutter config --no-analytics --enable-web >/dev/null
 flutter --version
 flutter pub get
+dart run tool/check_public_cloud_config.dart
 flutter build web --release --no-web-resources-cdn \
   --dart-define=SUPABASE_URL="$SUPABASE_URL" \
   --dart-define=SUPABASE_KEY="$SUPABASE_KEY"

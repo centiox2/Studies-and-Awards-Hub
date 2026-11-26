@@ -79,3 +79,16 @@ android/key.properties
 tool/shots/
 
 /supabase/.temp/
+
+# Local credentials, workspace databases and database sidecars.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.db.bak*
+*.signins

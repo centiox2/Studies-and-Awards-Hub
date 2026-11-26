@@ -75,13 +75,13 @@ void main() {
       final counts = ClientCountRepository(db);
       counts.saveCount(
         dayId: day.id,
-        staffId: staffId('Joy'),
+        staffId: staffId('Ellis'),
         newClients: 3,
         existingClients: 1,
       );
       final changes = counts.changes();
       expect(changes, hasLength(1));
-      expect(changes.first.staffName, 'Joy');
+      expect(changes.first.staffName, 'Ellis');
       expect(changes.first.oldNew, 0);
       expect(changes.first.newNew, 3);
       expect(changes.first.newExisting, 1);
@@ -91,12 +91,12 @@ void main() {
       final week = WeekRepository(db).createWeekFor(DateTime.now());
       final day = WeekRepository(db).getDays(week.id).first;
       final counts = ClientCountRepository(db);
-      final joy = staffId('Joy');
+      final ellis = staffId('Ellis');
       // Typing "12" saves 1 then 12.
       for (final v in [1, 12]) {
         counts.saveCount(
           dayId: day.id,
-          staffId: joy,
+          staffId: ellis,
           newClients: v,
           existingClients: 0,
         );
@@ -107,7 +107,7 @@ void main() {
       // Back to where it started: no change after all.
       counts.saveCount(
         dayId: day.id,
-        staffId: joy,
+        staffId: ellis,
         newClients: 0,
         existingClients: 0,
       );
@@ -123,25 +123,25 @@ void main() {
       final counts = ClientCountRepository(db);
       counts.saveCount(
         dayId: weeks.getDays(a.id).first.id,
-        staffId: staffId('Joy'),
+        staffId: staffId('Ellis'),
         newClients: 2,
         existingClients: 0,
       );
       counts.saveCount(
         dayId: weeks.getDays(b.id).first.id,
-        staffId: staffId('Ian'),
+        staffId: staffId('Devon'),
         newClients: 1,
         existingClients: 0,
       );
       counts.saveCount(
         dayId: weeks.getDays(b.id)[1].id,
-        staffId: staffId('Ian'),
+        staffId: staffId('Devon'),
         newClients: 5,
         existingClients: 0,
         log: false,
       );
       expect(counts.changes(), hasLength(2));
-      expect(counts.changes(weekId: a.id).single.staffName, 'Joy');
+      expect(counts.changes(weekId: a.id).single.staffName, 'Ellis');
 
       final json = db.exportToJson();
       final copy = openInMemoryDatabase();
@@ -149,7 +149,7 @@ void main() {
       copy.restoreFromJson(json);
       expect(ClientCountRepository(copy).changes(), hasLength(2));
 
-      StaffRepository(db).delete(staffId('Ian'));
+      StaffRepository(db).delete(staffId('Devon'));
       expect(counts.changes(), hasLength(1));
     });
 
@@ -159,7 +159,7 @@ void main() {
       final week = WeekRepository(db).createWeekFor(DateTime.now());
       ClientCountRepository(db).saveCount(
         dayId: WeekRepository(db).getDays(week.id).first.id,
-        staffId: staffId('Collins'),
+        staffId: staffId('Blair'),
         newClients: 4,
         existingClients: 2,
       );
@@ -171,7 +171,7 @@ void main() {
       await tester.tap(find.text('Change history (this and past weeks)'));
       await tester.pumpAndSettle();
       expect(find.text('Changes this week'), findsOneWidget);
-      expect(find.text('Collins'), findsWidgets);
+      expect(find.text('Blair'), findsWidgets);
       expect(find.textContaining('0 to 4', findRichText: true), findsOneWidget);
     });
 
@@ -184,13 +184,13 @@ void main() {
       final week = weeks.createWeekFor(DateTime.now());
       counts.saveCount(
         dayId: weeks.getDays(old.id).first.id,
-        staffId: staffId('Joy'),
+        staffId: staffId('Ellis'),
         newClients: 7,
         existingClients: 0,
       );
       counts.saveCount(
         dayId: weeks.getDays(week.id).first.id,
-        staffId: staffId('Collins'),
+        staffId: staffId('Blair'),
         newClients: 4,
         existingClients: 0,
       );
@@ -295,8 +295,8 @@ void main() {
     test('months, weekday averages and a staff profile', () {
       final weeks = WeekRepository(db);
       final counts = ClientCountRepository(db);
-      final joy = staffId('Joy');
-      // Two past weeks: Joy sees 2 on Mondays and 6 on Tuesdays.
+      final ellis = staffId('Ellis');
+      // Two past weeks: Ellis sees 2 on Mondays and 6 on Tuesdays.
       for (final back in [14, 21]) {
         final w = weeks.createWeekFor(
           DateTime.now().subtract(Duration(days: back)),
@@ -304,13 +304,13 @@ void main() {
         final days = weeks.getDays(w.id);
         counts.saveCount(
           dayId: days[0].id,
-          staffId: joy,
+          staffId: ellis,
           newClients: 2,
           existingClients: 0,
         );
         counts.saveCount(
           dayId: days[1].id,
-          staffId: joy,
+          staffId: ellis,
           newClients: 4,
           existingClients: 2,
         );
@@ -323,12 +323,12 @@ void main() {
       expect(byDay[DateTime.monday]!.average, 2);
       expect(byDay[DateTime.tuesday]!.average, 6);
 
-      final p = r.profileFor(joy)!;
+      final p = r.profileFor(ellis)!;
       expect(p.staff.total, 16);
       expect(p.bestDay!.total, 6);
       expect(p.weeks, hasLength(2));
       expect(p.weekdays.firstWhere((w) => w.weekday == 2).average, 6);
-      expect(r.profileFor(staffId('Ian'))!.staff.total, 0);
+      expect(r.profileFor(staffId('Devon'))!.staff.total, 0);
     });
   });
 
@@ -339,12 +339,12 @@ void main() {
     final counts = ClientCountRepository(db);
     counts.saveCount(
       dayId: days[3].id,
-      staffId: staffId('Beatrice'),
+      staffId: staffId('Alex'),
       newClients: 1,
       existingClients: 3,
     );
     TimeOffRepository(db)
-        .setDay(dayId: days[3].id, staffId: staffId('Joy'), off: true);
+        .setDay(dayId: days[3].id, staffId: staffId('Ellis'), off: true);
     final reports = ReportRepository(db);
     final thu = DateTime(2026, 10, 15);
     final text = buildDailySummary(
@@ -361,8 +361,8 @@ void main() {
       text,
       contains('Thursday: 4 clients (1 new, 3 existing) – target 10'),
     );
-    expect(text, contains('• Beatrice: 4 (1 new, 3 existing)'));
-    expect(text, contains('Off: Joy'));
+    expect(text, contains('• Alex: 4 (1 new, 3 existing)'));
+    expect(text, contains('Off: Ellis'));
     expect(text, contains('This week so far: 4 clients'));
   });
 
@@ -377,7 +377,7 @@ void main() {
       );
       counts.saveCount(
         dayId: weeks.getDays(w.id).first.id,
-        staffId: staffId('Joy'),
+        staffId: staffId('Ellis'),
         newClients: back == 0 ? 5 : 2,
         existingClients: 0,
       );
@@ -413,7 +413,7 @@ void main() {
     final w = WeekRepository(db).createWeekFor(DateTime.now());
     ClientCountRepository(db).saveCount(
       dayId: WeekRepository(db).getDays(w.id).first.id,
-      staffId: staffId('Talaam'),
+      staffId: staffId('Indigo'),
       newClients: 3,
       existingClients: 4,
     );
@@ -421,7 +421,7 @@ void main() {
     // (Not by the word "Staff": on a Monday Overview shows it too.)
     container.read(navTabProvider.notifier).set(AppTab.staff);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('View Talaam’s profile'));
+    await tester.tap(find.byTooltip('View Indigo’s profile'));
     await tester.pumpAndSettle();
     expect(find.text('Clients, all time'), findsOneWidget);
     expect(find.text('Average by weekday'), findsOneWidget);
@@ -468,18 +468,18 @@ void main() {
       final counts = ClientCountRepository(db);
       counts.saveCount(
         dayId: days[0].id,
-        staffId: staffId('Joy'),
+        staffId: staffId('Ellis'),
         newClients: 4,
         existingClients: 2,
       );
       counts.saveCount(
         dayId: days[2].id,
-        staffId: staffId('Director/Eve'),
+        staffId: staffId('Logan'),
         newClients: 1,
         existingClients: 7,
       );
       TimeOffRepository(db)
-          .setDay(dayId: days[4].id, staffId: staffId('Ian'), off: true);
+          .setDay(dayId: days[4].id, staffId: staffId('Devon'), off: true);
       final bytes = ExportService(counts.getWeekWithDays).exportWeek(w).bytes;
 
       final data = parseExcelImport(bytes);
@@ -499,10 +499,10 @@ void main() {
       final r = ReportRepository(fresh)
           .report(DateTime(2026, 9, 7), DateTime(2026, 9, 11));
       expect(r.total, 14);
-      final ian = StaffRepository(fresh)
+      final devon = StaffRepository(fresh)
           .getAll()
-          .firstWhere((s) => s.name == 'Ian');
-      expect(r.staff.firstWhere((s) => s.staffId == ian.id).daysOff, 1);
+          .firstWhere((s) => s.name == 'Devon');
+      expect(r.staff.firstWhere((s) => s.staffId == devon.id).daysOff, 1);
       // Nothing logged as edits.
       expect(ClientCountRepository(fresh).changes(), isEmpty);
     });
@@ -514,41 +514,41 @@ void main() {
       final counts = ClientCountRepository(db);
       counts.saveCount(
         dayId: day.id,
-        staffId: staffId('Joy'),
+        staffId: staffId('Ellis'),
         newClients: 9,
         existingClients: 0,
       );
       final data = ExcelImport(
         days: [
           ImportDay(DateTime(2026, 9, 7))
-            ..entries['Joy'] = const ImportEntry(
+            ..entries['Ellis'] = const ImportEntry(
               newClients: 1,
               existingClients: 1,
             ),
         ],
         warnings: const [],
       );
-      final targets = {'Joy': MatchStaff(staffId('Joy'))};
+      final targets = {'Ellis': MatchStaff(staffId('Ellis'))};
       final kept = applyExcelImport(db, data, targets, overwrite: false);
       expect(kept.kept, 1);
-      expect(counts.countValues(day.id, staffId('Joy')).newClients, 9);
+      expect(counts.countValues(day.id, staffId('Ellis')).newClients, 9);
       applyExcelImport(db, data, targets, overwrite: true);
-      expect(counts.countValues(day.id, staffId('Joy')).newClients, 1);
+      expect(counts.countValues(day.id, staffId('Ellis')).newClients, 1);
     });
 
     test('names: close matches, and unknown people become former staff', () {
       final staff = StaffRepository(db).getAll();
       expect(
-        suggestTarget('eve', staff),
+        suggestTarget('logan', staff),
         isA<MatchStaff>().having(
           (t) => t.staffId,
           'id',
-          staffId('Director/Eve'),
+          staffId('Logan'),
         ),
       );
       expect(
-        suggestTarget('  JOY ', staff),
-        isA<MatchStaff>().having((t) => t.staffId, 'id', staffId('Joy')),
+        suggestTarget('  ELLIS ', staff),
+        isA<MatchStaff>().having((t) => t.staffId, 'id', staffId('Ellis')),
       );
       expect(suggestTarget('Mercy Atieno', staff), isA<AddFormerStaff>());
 

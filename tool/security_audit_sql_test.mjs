@@ -72,6 +72,24 @@ assert(serverDiagnostics.some((event) =>
   event.operation === "schedule" && event.elapsed_ms === 1000));
 assert(!JSON.stringify(serverDiagnostics).includes("secret client"));
 assert(!JSON.stringify(serverDiagnostics).includes("private server details"));
+const airtableStatus = await scalar("select public.airtable_status($1)", [assigned]);
+assert.equal(airtableStatus.last_error, "airtable_empty");
+assert(!JSON.stringify(airtableStatus).includes("private server details"));
+
+await db.exec(`
+  insert into private.ai_summaries(summary_date,status,run_id,lease_until,cutoff_at,generated_at,model,content,input_snapshot)
+    values(private.today(),'ready',gen_random_uuid(),now(),now(),now(),'fixture',
+    '{"template":{"version":1,"quick":[],"detailed":[{"kind":"table","columns":["Client","Changed by","To"],"rows":[["Example Client","Hidden Editor","Submitted"]]}]}}',
+    '{"template_facts":{"raw":"Private snapshot"}}');
+`);
+const archive = await scalar("select public.ai_summary_read($1)", [assigned]);
+assert.equal(archive.summaries[0].input_snapshot, null);
+const eventTable = archive.summaries[0].content.template.detailed[0];
+assert.deepEqual(eventTable.columns, ["Client", "To"]);
+assert.deepEqual(eventTable.rows, [["Example Client", "Submitted"]]);
+assert(!JSON.stringify(archive).includes("Hidden Editor"));
+assert(!JSON.stringify(archive).includes("Private snapshot"));
+
 assert.equal(
   await scalar("select public.ai_summary_access($1)", [restricted]),
   false,

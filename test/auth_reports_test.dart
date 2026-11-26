@@ -408,12 +408,12 @@ void main() {
         newClients: n,
         existingClients: e,
       );
-      save(0, 'Joy', 3, 2);
-      save(1, 'Joy', 1, 0);
-      save(0, 'Ian', 0, 4);
-      save(2, 'Ian', 9, 9); // Ian is off that day — must not count.
+      save(0, 'Ellis', 3, 2);
+      save(1, 'Ellis', 1, 0);
+      save(0, 'Devon', 0, 4);
+      save(2, 'Devon', 9, 9); // Devon is off that day — must not count.
       TimeOffRepository(db)
-          .setDay(dayId: days[2].id, staffId: staffId('Ian'), off: true);
+          .setDay(dayId: days[2].id, staffId: staffId('Devon'), off: true);
 
       final r = ReportRepository(db)
           .report(DateTime(2026, 9, 28), DateTime(2026, 10, 2));
@@ -428,12 +428,12 @@ void main() {
       expect(r.staffWithClients, 2);
 
       // Most clients first.
-      expect(r.staff.first.name, 'Joy');
+      expect(r.staff.first.name, 'Ellis');
       expect(r.staff.first.total, 6);
-      final ian = r.staff.firstWhere((s) => s.name == 'Ian');
-      expect(ian.total, 4);
-      expect(ian.daysOff, 1);
-      expect(ian.daysWorked, 4);
+      final devon = r.staff.firstWhere((s) => s.name == 'Devon');
+      expect(devon.total, 4);
+      expect(devon.daysOff, 1);
+      expect(devon.daysWorked, 4);
       expect(r.lastUpdated, isNotNull);
     });
 
@@ -443,7 +443,7 @@ void main() {
       final days = weeks.getDays(week.id);
       ClientCountRepository(db).saveCount(
         dayId: days[4].id, // Fri 2 Oct
-        staffId: staffId('Joy'),
+        staffId: staffId('Ellis'),
         newClients: 5,
         existingClients: 0,
       );
@@ -493,51 +493,51 @@ void main() {
     final counts = ClientCountRepository(db);
     counts.saveCount(
       dayId: days[0].id,
-      staffId: staffId('Joy'),
+      staffId: staffId('Ellis'),
       newClients: 2,
       existingClients: 1,
     );
     counts.saveCount(
       dayId: days[1].id,
-      staffId: staffId('Ian'),
+      staffId: staffId('Devon'),
       newClients: 0,
       existingClients: 4,
     );
     TimeOffRepository(db)
-        .setDay(dayId: days[2].id, staffId: staffId('Joy'), off: true);
+        .setDay(dayId: days[2].id, staffId: staffId('Ellis'), off: true);
 
     // Fixed timestamps: two saves in one test can share a millisecond.
     db.raw.execute(
       'UPDATE client_counts SET updated_at = ? WHERE staff_id = ?;',
-      ['2026-09-28T09:00:00.000', staffId('Joy')],
+      ['2026-09-28T09:00:00.000', staffId('Ellis')],
     );
     db.raw.execute(
       'UPDATE client_counts SET updated_at = ? WHERE staff_id = ?;',
-      ['2026-09-29T11:30:00.000', staffId('Ian')],
+      ['2026-09-29T11:30:00.000', staffId('Devon')],
     );
 
     final r = ReportRepository(db)
         .report(DateTime(2026, 9, 28), DateTime(2026, 10, 2));
-    expect(r.cellFor(staffId('Joy'), days[0].id)!.total, 3);
-    expect(r.cellFor(staffId('Joy'), days[2].id)!.off, isTrue);
-    expect(r.cellFor(staffId('Ian'), days[1].id)!.existingClients, 4);
+    expect(r.cellFor(staffId('Ellis'), days[0].id)!.total, 3);
+    expect(r.cellFor(staffId('Ellis'), days[2].id)!.off, isTrue);
+    expect(r.cellFor(staffId('Devon'), days[1].id)!.existingClients, 4);
     // Only staff-days with clients appear, newest change first.
-    expect(r.activity.map((a) => a.staffName), ['Ian', 'Joy']);
+    expect(r.activity.map((a) => a.staffName), ['Devon', 'Ellis']);
   });
 
   testWidgets(
     'Quick view shows today: who saw clients, who has not, who is off',
     (tester) async {
       final day = quickDay();
-      saveOn(day, 'Joy', 3, 2);
-      saveOn(day, 'Dennis', 0, 1);
+      saveOn(day, 'Ellis', 3, 2);
+      saveOn(day, 'Casey', 0, 1);
       final weeks = WeekRepository(db);
       final dayId = weeks
           .getDays(weeks.findByDate(day)!.id)
           .firstWhere((d) => d.date.day == day.day)
           .id;
       TimeOffRepository(db)
-          .setDay(dayId: dayId, staffId: staffId('Ian'), off: true);
+          .setDay(dayId: dayId, staffId: staffId('Devon'), off: true);
 
       await pumpApp(tester);
 
@@ -546,7 +546,7 @@ void main() {
       expect(find.text('2 of 13 working'), findsOneWidget);
       expect(find.text('No clients yet'), findsOneWidget);
       expect(find.text('Off'), findsOneWidget);
-      expect(find.text('Ian'), findsOneWidget); // listed under Off
+      expect(find.text('Devon'), findsOneWidget); // listed under Off
       expect(find.text('Latest updates'), findsOneWidget);
       expect(find.textContaining('3 new · 2 existing'), findsWidgets);
     },
@@ -556,11 +556,11 @@ void main() {
     'Quick view aligns staff activity bars and adapts to large text',
     (tester) async {
       final day = quickDay();
-      saveOn(day, 'Joy', 3, 2);
-      saveOn(day, 'Dennis', 0, 1);
+      saveOn(day, 'Ellis', 3, 2);
+      saveOn(day, 'Casey', 0, 1);
       db.raw.execute('UPDATE staff SET name = ? WHERE id = ?', [
-        'Dennis Example-Surname',
-        staffId('Dennis'),
+        'Casey Example-Surname',
+        staffId('Casey'),
       ]);
       await pumpApp(tester);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -569,8 +569,8 @@ void main() {
       Finder label(String text) =>
           find.descendant(of: card, matching: find.text(text));
       final bars = find.descendant(of: card, matching: find.byType(ClipRRect));
-      final firstName = label('Joy');
-      final secondName = label('Dennis Example-Surname');
+      final firstName = label('Ellis');
+      final secondName = label('Casey Example-Surname');
 
       expect(bars, findsNWidgets(2));
       expect(tester.getTopLeft(bars.first).dx, tester.getTopLeft(bars.last).dx);
@@ -599,7 +599,7 @@ void main() {
       final noClients = label('No clients yet');
       final names = find.descendant(
         of: card,
-        matching: find.textContaining('Ian'),
+        matching: find.textContaining('Devon'),
       );
       expect(
         tester.getTopLeft(names).dy,
@@ -615,7 +615,7 @@ void main() {
     final monday = WeekRepository(db).getDays(week.id).first;
     ClientCountRepository(db).saveCount(
       dayId: monday.id,
-      staffId: staffId('Joy'),
+      staffId: staffId('Ellis'),
       newClients: 4,
       existingClients: 3,
     );
@@ -638,7 +638,7 @@ void main() {
     expect(find.text('1 of 14 saw clients'), findsOneWidget);
     expect(find.text('Avg / day'), findsOneWidget);
 
-    // The grid can switch to New only: Joy's Monday shows 4.
+    // The grid can switch to New only: Ellis's Monday shows 4.
     await tester.tap(find.text('New').last);
     await tester.pumpAndSettle();
     expect(find.text('4'), findsWidgets);

@@ -44,7 +44,7 @@ void main() {
 
   int joyId() =>
       db.raw.select('SELECT id FROM staff WHERE name = ?;', [
-            'Joy',
+            'Ellis',
           ]).first['id']!
           as int;
 
@@ -203,7 +203,7 @@ void main() {
     await openMondayDayOff(tester);
 
     await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: find.text('Joy')),
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('Ellis')),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));

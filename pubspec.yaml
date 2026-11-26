@@ -1,7 +1,7 @@
 name: client_tracker
 description: "Weekly client tracking application — replaces the weekly Excel tracking spreadsheet."
 publish_to: 'none'
-version: 1.9.17+36
+version: 1.9.18+37
 
 environment:
   sdk: ^3.13.4

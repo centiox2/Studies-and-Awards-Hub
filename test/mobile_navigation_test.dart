@@ -23,8 +23,8 @@ const _admin = AppUser(
 );
 const _other = AppUser(
   id: 2,
-  username: 'joy',
-  fullName: 'Joy',
+  username: 'ellis',
+  fullName: 'Ellis',
   role: UserRole.admin,
 );
 

@@ -75,23 +75,23 @@ void main() {
     final weeks = WeekRepository(db);
     final w = weeks.createWeekFor(DateTime(2026, 9, 7));
     final day = weeks.getDays(w.id).first;
-    final joy = StaffRepository(db).getAll().firstWhere((s) => s.name == 'Joy');
-    weeks.addStaffToWeek(w.id, [joy.id]);
+    final ellis = StaffRepository(db).getAll().firstWhere((s) => s.name == 'Ellis');
+    weeks.addStaffToWeek(w.id, [ellis.id]);
     final off = TimeOffRepository(db)
-      ..setDay(dayId: day.id, staffId: joy.id, off: true);
+      ..setDay(dayId: day.id, staffId: ellis.id, off: true);
     final data = ExcelImport(
       days: [
         ImportDay(DateTime(2026, 9, 7))
-          ..entries['Joy'] = const ImportEntry(
+          ..entries['Ellis'] = const ImportEntry(
             newClients: 3,
             existingClients: 0,
           ),
       ],
       warnings: const [],
     );
-    applyExcelImport(db, data, {'Joy': MatchStaff(joy.id)}, overwrite: true);
+    applyExcelImport(db, data, {'Ellis': MatchStaff(ellis.id)}, overwrite: true);
     expect(off.offStaffIds(day.id), isEmpty);
-    expect(ClientCountRepository(db).countValues(day.id, joy.id).newClients, 3);
+    expect(ClientCountRepository(db).countValues(day.id, ellis.id).newClients, 3);
   });
 
   test('upgrading strips a legacy session token from the live database', () {

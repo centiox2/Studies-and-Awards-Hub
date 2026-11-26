@@ -19,7 +19,6 @@ Future<AppDatabase> openPlatformDatabase(String directory) async {
   final raw = sqlite.open(dbPath);
   raw.execute('PRAGMA foreign_keys = ON;');
   AppDatabase.migrate(raw);
-  AppDatabase.seedStaff(raw);
 
   // IndexedDB writes are asynchronous and flushed continuously; a failure to
   // persist is surfaced by the browser, not by sqlite3 here.

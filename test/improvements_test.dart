@@ -91,14 +91,14 @@ void main() {
       DateTime.now().subtract(const Duration(days: 21)),
     );
     final repo = StaffRepository(db);
-    final joy = staffId('Joy');
-    repo.setActive(joy, false);
+    final ellis = staffId('Ellis');
+    repo.setActive(ellis, false);
     final current = weeks.createWeekFor(workingWeekDay());
-    expect(staffOnWeek(current.id), isNot(contains(joy)));
+    expect(staffOnWeek(current.id), isNot(contains(ellis)));
 
-    repo.setActive(joy, true);
-    expect(staffOnWeek(current.id), contains(joy));
-    // Joy was already on the past week (created while active); nothing new
+    repo.setActive(ellis, true);
+    expect(staffOnWeek(current.id), contains(ellis));
+    // Ellis was already on the past week (created while active); nothing new
     // is added there.
     expect(staffOnWeek(past.id).length, 14);
   });
@@ -199,7 +199,7 @@ void main() {
     final current = weeks.createWeekFor(DateTime.now());
     final lastFriday = weeks.getDays(last.id).last;
     TimeOffRepository(db)
-        .setDay(dayId: lastFriday.id, staffId: staffId('Ian'), off: true);
+        .setDay(dayId: lastFriday.id, staffId: staffId('Devon'), off: true);
     final container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(db)],
     );
@@ -212,7 +212,7 @@ void main() {
     final thisFriday = weeks.getDays(current.id).last;
     expect(
       TimeOffRepository(db).offStaffIds(thisFriday.id),
-      contains(staffId('Ian')),
+      contains(staffId('Devon')),
     );
     // Running it again adds nothing new.
     expect(
@@ -269,7 +269,7 @@ void main() {
     final day = weeks.getDays(week.id).first;
     ClientCountRepository(db).saveCount(
       dayId: day.id,
-      staffId: staffId('Joy'),
+      staffId: staffId('Ellis'),
       newClients: 3,
       existingClients: 2,
     );
@@ -286,7 +286,7 @@ void main() {
       reportToPrintableHtml(report, title: 'Week of 28 Sep', target: 40),
     );
     expect(html, contains('Week of 28 Sep'));
-    expect(html, contains('Joy'));
+    expect(html, contains('Ellis'));
     expect(html, contains('window.print()'));
     // Notes are escaped, never injected as HTML.
     expect(html, contains('Outreach &lt;day&gt; &amp; more'));

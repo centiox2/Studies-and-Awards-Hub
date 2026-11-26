@@ -135,7 +135,7 @@ void main() {
     // staff, staff in display order.
     final joyIndex =
         db.raw.select('SELECT display_order FROM staff WHERE name = ?;', [
-              'Joy',
+              'Ellis',
             ]).first['display_order']!
             as int;
     final allFields = find.byType(TextField);
@@ -161,7 +161,7 @@ void main() {
     final monday = WeekRepository(db).getDays(week.id).first;
     final joyId =
         db.raw.select('SELECT id FROM staff WHERE name = ?;', [
-              'Joy',
+              'Ellis',
             ]).first['id']!
             as int;
     final stored =
@@ -236,11 +236,11 @@ void main() {
     await tester.tap(find.text('Staff').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Beatrice'), findsOneWidget);
+    expect(find.text('Alex'), findsOneWidget);
     expect(find.text('14 active · 0 inactive'), findsOneWidget);
     // Scroll to the last row (list is lazy).
     await tester.scrollUntilVisible(
-      find.text('Cinthia'),
+      find.text('Nico'),
       300,
       scrollable: find
           .descendant(
@@ -249,7 +249,7 @@ void main() {
           )
           .first,
     );
-    expect(find.text('Cinthia'), findsOneWidget);
+    expect(find.text('Nico'), findsOneWidget);
   });
 
   testWidgets('board: tapping a name opens time off and marks the day Off', (
@@ -262,10 +262,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Open the time-off editor from the first staff name on the board.
-    await tester.tap(find.text('Beatrice'));
+    await tester.tap(find.text('Alex'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Time off — Beatrice'), findsOneWidget);
+    expect(find.text('Time off — Alex'), findsOneWidget);
 
     // Toggle Monday off (first checkbox after the whole-week switch) and save.
     await tester.tap(
@@ -306,7 +306,7 @@ void main() {
     await tester.tap(find.text('Staff').last);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('Beatrice'), findsOneWidget);
+    expect(find.text('Alex'), findsOneWidget);
   });
 
   testWidgets('tablet width keeps every primary screen renderable', (

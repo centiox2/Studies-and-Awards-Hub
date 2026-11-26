@@ -18,7 +18,7 @@ Instead of rebuilding a spreadsheet every week:
 4. Enter numbers during the day — **totals update instantly**, everything **saves automatically**.
 5. Past weeks stay in **History**, still editable, still exportable.
 
-Values are **cumulative per day**: if Joy has `New = 3` at 10 AM and you type `5` at 1 PM, the stored value is **5** (the current tally), not 8.
+Values are **cumulative per day**: if Ellis has `New = 3` at 10 AM and you type `5` at 1 PM, the stored value is **5** (the current tally), not 8.
 
 ## Main screens
 

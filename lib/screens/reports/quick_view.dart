@@ -398,7 +398,7 @@ class _QuickView extends ConsumerWidget {
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 }
 
-/// "● Live · Tuesday 13 October · last update 15:49 by Joy".
+/// "● Live · Tuesday 13 October · last update 15:49 by Ellis".
 class _LiveHeader extends StatelessWidget {
   const _LiveHeader({
     required this.day,

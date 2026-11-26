@@ -76,12 +76,12 @@ void main() {
     final days = weeks.getDays(week.id);
     ClientCountRepository(db).saveCount(
       dayId: days[1].id,
-      staffId: staffId('Joy'),
+      staffId: staffId('Ellis'),
       newClients: 4,
       existingClients: 2,
     );
     TimeOffRepository(db)
-        .setDay(dayId: days[2].id, staffId: staffId('Ian'), off: true);
+        .setDay(dayId: days[2].id, staffId: staffId('Devon'), off: true);
     final before = [
       for (final t in [
         'weeks',
@@ -115,16 +115,16 @@ void main() {
     final weeks = WeekRepository(db);
     final week = weeks.createWeekFor(DateTime(2026, 9, 28));
     final day = weeks.getDays(week.id).first;
-    final joy = staffId('Joy');
+    final ellis = staffId('Ellis');
     ClientCountRepository(
       db,
-    ).saveCount(dayId: day.id, staffId: joy, newClients: 7, existingClients: 1);
-    final removed = StaffRepository(db).delete(joy);
-    expect(StaffRepository(db).getAll().any((s) => s.id == joy), isFalse);
+    ).saveCount(dayId: day.id, staffId: ellis, newClients: 7, existingClients: 1);
+    final removed = StaffRepository(db).delete(ellis);
+    expect(StaffRepository(db).getAll().any((s) => s.id == ellis), isFalse);
 
     removed.restore(db);
     expect(
-      StaffRepository(db).getAll().any((s) => s.id == joy && s.name == 'Joy'),
+      StaffRepository(db).getAll().any((s) => s.id == ellis && s.name == 'Ellis'),
       isTrue,
     );
     expect(ClientCountRepository(db).weekTotals(week.id).total, 8);
@@ -141,7 +141,7 @@ void main() {
     final week = weeks.createWeekFor(DateTime(2026, 9, 28));
     ClientCountRepository(db).saveCount(
       dayId: weeks.getDays(week.id).first.id,
-      staffId: staffId('Joy'),
+      staffId: staffId('Ellis'),
       newClients: 3,
       existingClients: 2,
     );

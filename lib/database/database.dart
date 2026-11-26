@@ -449,15 +449,9 @@ class AppDatabase {
     }
   }
 
-  /// First-launch convenience only: seeds the current spreadsheet's staff so
-  /// the app is immediately usable. These are editable records, not constants.
-  ///
-  /// Only ever once per database: someone who deletes every staff member
-  /// (or restores a backup with none) must not get the starter names back
-  /// at the next launch — they would then sync to every device. A database
-  /// already in use (staff or weeks in it) counts as seeded. The flag lives
-  /// in `sync_state`, which never syncs or goes into backups.
-  static void seedStaff(common.CommonDatabase db) {
+  /// Populates synthetic staff in the in-memory test database.
+  /// Production databases get their staff from an authorized sync or user edits.
+  static void seedTestStaff(common.CommonDatabase db) {
     final seeded = db.select(
       "SELECT 1 FROM sync_state WHERE k = 'staff_seeded' LIMIT 1;",
     );
@@ -472,20 +466,20 @@ class AppDatabase {
     if (inUse.first['c']! as int > 0) return;
 
     const seed = [
-      'Beatrice',
-      'Collins',
-      'Dennis',
-      'Ian',
-      'Joy',
-      'Joyner',
-      'Whitney',
-      'Rhab',
-      'Talaam',
-      'Winne',
-      'Karren',
-      'Director/Eve',
-      'Canisius Yego',
-      'Cinthia',
+      'Alex',
+      'Blair',
+      'Casey',
+      'Devon',
+      'Ellis',
+      'Finley',
+      'Gray',
+      'Harper',
+      'Indigo',
+      'Jordan',
+      'Kelly',
+      'Logan',
+      'Morgan',
+      'Nico',
     ];
     final now = DateTime.now().toIso8601String();
     final stmt = db.prepare(

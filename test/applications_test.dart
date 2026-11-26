@@ -66,7 +66,7 @@ void main() {
         .replaceFirst(RegExp(r'Faith Trial[^\n]*\n'), '')
         .replaceFirst(
           'George Pilot',
-          'Hana New,NPA,Australia,,,,,Statement building,Joy,,,,,,,\r\n'
+          'Hana New,NPA,Australia,,,,,Statement building,Ellis,,,,,,,\r\n'
               'George Pilot',
         );
     final r = repo.importCsv(next, fileName: 'week2.csv');
@@ -207,11 +207,11 @@ void main() {
         'Student name,RTO name,Country,Doc submit date,App submitted date,'
         'Offer letter received date,COE issue date,Status,Assignee,To do list\n'
         'Today Coe,Reach,Australia,,,,"${long(now)}",COE ISSUED/DONE,Mourine,\n'
-        'Today Offer,NPA,Australia,,,"${long(now)}",,To pay school fees,Joy,\n'
-        'Noted Today,WAIFS,Australia,"${long(old)}",,,,Statement building,Joy,'
+        'Today Offer,NPA,Australia,,,"${long(now)}",,To pay school fees,Ellis,\n'
+        'Noted Today,WAIFS,Australia,"${long(old)}",,,,Statement building,Ellis,'
         '"${short(now)}- Student sent bank statements"\n'
         'Long Wait,AVTA,Australia,"${long(old)}","${long(old)}",,,'
-        'Awaiting offer letter,Ian,\n'
+        'Awaiting offer letter,Devon,\n'
         'Nobody Assigned,,Australia,"${long(now)}",,,,'
         'Application to be submitted,,\n';
     ApplicationRepository(db).importCsv(csv);
@@ -252,20 +252,20 @@ void main() {
     final csv =
         'Student name,RTO name,Country,Doc submit date,App submitted date,'
         'Offer letter received date,COE issue date,Status,Assignee\n'
-        'Amy One,Reach,Australia,"${long(now)}",,,,Awaiting offer letter,Joy\n'
-        'Ben Two,NPA,Canada,"${long(now)}",,,,To pay school fees,Joy\n'
-        'Cal Three,AVTA,Australia,"${long(now)}",,,,Awaiting offer letter,Ian\n'
+        'Amy One,Reach,Australia,"${long(now)}",,,,Awaiting offer letter,Ellis\n'
+        'Ben Two,NPA,Canada,"${long(now)}",,,,To pay school fees,Ellis\n'
+        'Cal Three,AVTA,Australia,"${long(now)}",,,,Awaiting offer letter,Devon\n'
         'Dee Four,WAIFS,Australia,"${long(now)}",,,,'
         'Application to be submitted,\n'
-        'Eve Done,Reach,Australia,,,,"${long(now)}",COE ISSUED/DONE,Joy\n';
+        'Logan Done,Reach,Australia,,,,"${long(now)}",COE ISSUED/DONE,Ellis\n';
     ApplicationRepository(db).importCsv(csv);
     await pumpApp(tester, UserRole.director);
     await tester.tap(find.text('Applications').first);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byKey(const ValueKey('handling-Joy')));
+    await tester.ensureVisible(find.byKey(const ValueKey('handling-Ellis')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('handling-Joy')));
+    await tester.tap(find.byKey(const ValueKey('handling-Ellis')));
     await tester.pumpAndSettle();
     expect(find.text('HANDLING · 2'), findsOneWidget);
     expect(find.text('UNASSIGNED · 1'), findsOneWidget);
@@ -276,9 +276,9 @@ void main() {
         findsOneWidget,
       );
     }
-    // Only in-progress ones: Eve's is done; Cal is Ian's.
+    // Only in-progress ones: Logan's is done; Cal is Devon's.
     expect(
-      find.descendant(of: dialog, matching: find.text('Eve Done')),
+      find.descendant(of: dialog, matching: find.text('Logan Done')),
       findsNothing,
     );
     expect(

@@ -1013,7 +1013,7 @@ class UnderlineTabs<T> extends StatelessWidget {
   }
 }
 
-/// Two letters for an avatar: "Canisius Yego" → "CY", "Admin" → "AD".
+/// Two letters for an avatar: "Morgan" → "MO", "Admin" → "AD".
 String initialsOf(String name) {
   final words = name
       .split(RegExp(r'[\s/]+'))

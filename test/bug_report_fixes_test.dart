@@ -1,5 +1,7 @@
 // Regression tests for the S&A Hub bug report (12 issues). Each group is
 // named after the issue it covers.
+import 'dart:io';
+
 import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +23,7 @@ const _airtel =
     'Ksh.1500 received from JOHN DOE 0733123456 on 3/11/26 at 2:15 PM via '
     'Airtel Money. New balance Ksh. 3,000.';
 const _mpesa =
-    'UK3JPO8PVA Confirmed. Ksh500.00 received from DAVID KANGOGO 0712345678 '
+    'UK3JPO8PVA Confirmed. Ksh500.00 received from EXAMPLE PAYER 0712345678 '
     'on 3/11/26 at 1:38 PM New M-PESA balance is Ksh106,520.00. Transaction '
     'cost, Ksh0.00.';
 const _bank =
@@ -72,17 +74,25 @@ void main() {
     });
   });
 
-  group('2: starter staff only once', () {
+  group('2: synthetic staff fixtures', () {
+    test('a fresh app database opens without a bundled roster', () async {
+      final temp = await Directory.systemTemp.createTemp('sa-hub-fresh-');
+      addTearDown(() => temp.delete(recursive: true));
+      final fresh = openPlatformDatabase(temp.path);
+      addTearDown(fresh.close);
+      expect(StaffRepository(fresh).getAll(), isEmpty);
+    });
+
     int count() =>
         db.raw.select('SELECT COUNT(*) AS c FROM staff;').first['c']! as int;
 
-    test('a fresh database gets the 14 starter names', () {
+    test('an in-memory fixture gets 14 example staff', () {
       expect(count(), 14);
     });
 
     test('deleting everyone stays deleted at the next launch', () {
       db.raw.execute('DELETE FROM staff;');
-      AppDatabase.seedStaff(db.raw); // what opening the database runs
+      AppDatabase.seedTestStaff(db.raw);
       expect(count(), 0);
     });
 
@@ -92,7 +102,7 @@ void main() {
       for (final n in ['Ann', 'Ben', 'Cy']) {
         StaffRepository(db).add(n);
       }
-      AppDatabase.seedStaff(db.raw);
+      AppDatabase.seedTestStaff(db.raw);
       expect(count(), 3);
     });
   });
@@ -136,18 +146,18 @@ void main() {
     test('the repository caps a pasted phone number', () {
       final w = WeekRepository(db).createWeekFor(DateTime(2026, 11, 2));
       final day = WeekRepository(db).getDays(w.id).first;
-      final joy = StaffRepository(db)
+      final ellis = StaffRepository(db)
           .getAll()
-          .firstWhere((s) => s.name == 'Joy')
+          .firstWhere((s) => s.name == 'Ellis')
           .id;
       ClientCountRepository(db).saveCount(
         dayId: day.id,
-        staffId: joy,
+        staffId: ellis,
         newClients: 712345678,
         existingClients: 3,
       );
       expect(
-        ClientCountRepository(db).countValues(day.id, joy).newClients,
+        ClientCountRepository(db).countValues(day.id, ellis).newClients,
         ClientCountRepository.maxClients,
       );
     });
@@ -206,7 +216,7 @@ void main() {
       final bytes = ExportService(counts.getWeekWithDays).exportWeek(w).bytes;
       final book = Excel.decodeBytes(bytes);
       final sheet = book.tables.values.first;
-      // Joy's first row: New as text "1,234"; Ian's first row: a formula.
+      // Ellis's first row: New as text "1,234"; Devon's first row: a formula.
       CellIndex? cellFor(String name) {
         for (var r = 0; r < sheet.maxRows; r++) {
           final v = sheet.rows[r].isEmpty ? null : sheet.rows[r][0]?.value;
@@ -217,16 +227,18 @@ void main() {
         return null;
       }
 
-      sheet.updateCell(cellFor('Joy')!, TextCellValue('1,234'));
-      sheet.updateCell(cellFor('Ian')!, FormulaCellValue('=1+1'));
+      sheet.updateCell(cellFor('Ellis')!, TextCellValue('1,234'));
+      sheet.updateCell(cellFor('Devon')!, FormulaCellValue('=1+1'));
       final data = parseExcelImport(book.save()!);
       final monday = data.days.firstWhere(
         (d) => d.date == DateTime(2026, 9, 7),
       );
-      expect(monday.entries['Joy']!.newClients, 1234);
-      expect(monday.entries.containsKey('Ian'), isFalse);
+      expect(monday.entries['Ellis']!.newClients, 1234);
+      expect(monday.entries.containsKey('Devon'), isFalse);
       expect(
-        data.warnings.where((w) => w.contains('Ian') && w.contains('formula')),
+        data.warnings.where(
+          (w) => w.contains('Devon') && w.contains('formula'),
+        ),
         isNotEmpty,
       );
     });
@@ -278,8 +290,9 @@ void main() {
       const header =
           'Student name,RTO name,Country,Doc submit date,App submitted date,'
           'Offer letter received date,COE issue date,Status,Assignee\n';
-      const jane1 = 'Jane Doe,Reach,Australia,,,,,Awaiting offer letter,Joy\n';
-      const jane2 = 'Jane Doe,NPA,Canada,,,,,To pay school fees,Ian\n';
+      const jane1 =
+          'Jane Doe,Reach,Australia,,,,,Awaiting offer letter,Ellis\n';
+      const jane2 = 'Jane Doe,NPA,Canada,,,,,To pay school fees,Devon\n';
       final repo = ApplicationRepository(db);
       repo.importCsv(header + jane1 + jane2);
       final again = repo.importCsv(header + jane2 + jane1);
@@ -292,8 +305,8 @@ void main() {
           'Student name,RTO name,Country,Doc submit date,App submitted date,'
           'Offer letter received date,COE issue date,Status,Assignee\n';
       repo.importCsv(
-        '${header}Jane Doe,Reach,Australia,,,,,Awaiting offer letter,Joy\n'
-        'Jane Doe,NPA,Canada,,,,,To pay school fees,Ian\n',
+        '${header}Jane Doe,Reach,Australia,,,,,Awaiting offer letter,Ellis\n'
+        'Jane Doe,NPA,Canada,,,,,To pay school fees,Devon\n',
       );
       // As an older version stored them: by order in the file.
       db.raw.execute(
@@ -305,8 +318,8 @@ void main() {
         "WHERE app_key = 'jane doe · npa · canada';",
       );
       final r = repo.importCsv(
-        '${header}Jane Doe,NPA,Canada,,,,,To pay school fees,Ian\n'
-        'Jane Doe,Reach,Australia,,,,,Awaiting offer letter,Joy\n',
+        '${header}Jane Doe,NPA,Canada,,,,,To pay school fees,Devon\n'
+        'Jane Doe,Reach,Australia,,,,,Awaiting offer letter,Ellis\n',
       );
       expect((r.added, r.changed, r.removed), (0, 0, 0));
       expect(repo.all().map((a) => a.key), isNot(contains('jane doe')));

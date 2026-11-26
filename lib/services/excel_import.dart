@@ -376,7 +376,7 @@ class SkipName extends ImportTarget {
 
 /// The best guess for [name]: the same name (ignoring case and spacing),
 /// else the only staff member whose name contains it or is contained by it
-/// ("Eve" → "Director/Eve"), else add as former staff.
+/// ("Alex" → "Director/Alex"), else add as former staff.
 ImportTarget suggestTarget(String name, List<Staff> staff) {
   String norm(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   final n = norm(name);

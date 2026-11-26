@@ -66,8 +66,7 @@ const hour = new Intl.DateTimeFormat("en-GB", {
 });
 
 function normalizedName(name: string) {
-  const normalized = name.toLowerCase();
-  return normalized === "winne" ? "winnie" : normalized;
+  return name.trim().toLowerCase();
 }
 
 function assignees(facts: Data, staff: Data[]) {
@@ -97,9 +96,6 @@ function assignees(facts: Data, staff: Data[]) {
     if (raw) {
       group.labels.add(raw);
       if (group.name === "Unassigned" || /^[A-Z]/.test(raw)) group.name = raw;
-      if (
-        key === "winnie" && (raw === "Winnie" || group.labels.has("Winnie"))
-      ) group.name = "Winnie";
     }
     for (const field of ["total", "updated", "statuses", "coes"] as const) {
       group[field] += value(row[field]);

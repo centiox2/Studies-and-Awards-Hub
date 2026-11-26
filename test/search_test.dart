@@ -30,9 +30,9 @@ void main() {
     });
 
     test('every word must be found, across fields', () {
-      final s = TextSearch('ecu joy');
-      expect(s.matchesAny(['Alice', 'ECU', 'Joy']), isTrue);
-      expect(s.matchesAny(['Alice', 'ECU', 'Ian']), isFalse);
+      final s = TextSearch('ecu ellis');
+      expect(s.matchesAny(['Alice', 'ECU', 'Ellis']), isTrue);
+      expect(s.matchesAny(['Alice', 'ECU', 'Devon']), isFalse);
     });
   });
 
@@ -43,8 +43,8 @@ void main() {
   const csv =
       'Student name,RTO name,Country,Doc submit date,App submitted date,'
       'Offer letter received date,COE issue date,Status,Assignee,To do list\n'
-      "Siobhan O'Brien,ECU,Australia,,,,,Statement building,Joy,\n"
-      'Ben Otieno,AIBT,Australia,,,,,Awaiting offer letter,Ian,\n';
+      "Siobhan O'Brien,ECU,Australia,,,,,Statement building,Ellis,\n"
+      'Ben Otieno,AIBT,Australia,,,,,Awaiting offer letter,Devon,\n';
 
   Future<void> pumpAs(WidgetTester tester, UserRole role) async {
     tester.view.physicalSize = const Size(1600, 1000);

@@ -52,7 +52,6 @@ AppDatabase openPlatformDatabase(String directory) {
       raw.execute('VACUUM;');
       raw.execute('PRAGMA wal_checkpoint(TRUNCATE);');
     }
-    AppDatabase.seedStaff(raw);
     return AppDatabase.internal(dbPath, raw);
   } catch (e) {
     raw.dispose();
@@ -145,7 +144,7 @@ AppDatabase openInMemoryDatabase() {
   final raw = sqlite3.openInMemory();
   raw.execute('PRAGMA foreign_keys = ON;');
   AppDatabase.migrate(raw);
-  AppDatabase.seedStaff(raw);
+  AppDatabase.seedTestStaff(raw);
   return AppDatabase.internal(':memory:', raw);
 }
 

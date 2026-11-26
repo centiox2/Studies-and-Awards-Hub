@@ -294,9 +294,9 @@ void main() {
     // is in there too.
     final text =
         'UK3JPO8PVA Confirmed. on ${d(now)} at 1:38 AM Ksh45,740.00 received '
-        'from DAVID KANGOGO 254722699840. New Utility balance is Ksh9.00\n'
+        'from EXAMPLE PAYER 254722699840. New Utility balance is Ksh9.00\n'
         'UK3JP08PVA Confirmed. on ${d(now)} at 1:38 AM Ksh45,740.00 received '
-        'from DAVID KANGOGO 254722699840. New Utility balance is Ksh9.00\n'
+        'from EXAMPLE PAYER 254722699840. New Utility balance is Ksh9.00\n'
         'TJ2AB34CDE Confirmed. on ${d(y)} at 4:05 PM Ksh1,200.00 received '
         'from JANE W 254711000111. New Utility balance is Ksh1.00';
     await tester.tap(find.byKey(const ValueKey('paste-payment')));

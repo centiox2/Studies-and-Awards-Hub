@@ -1314,7 +1314,7 @@ void main() {
     final before = engine.pending;
     ClientCountRepository(admin).saveCount(
       dayId: WeekRepository(admin).getDays(week.id).first.id,
-      staffId: staffId(admin, 'Joy'),
+      staffId: staffId(admin, 'Ellis'),
       newClients: 2,
       existingClients: 1,
     );
@@ -1329,7 +1329,7 @@ void main() {
       final monday = WeekRepository(admin).getDays(week.id).first;
       ClientCountRepository(admin).saveCount(
         dayId: monday.id,
-        staffId: staffId(admin, 'Joy'),
+        staffId: staffId(admin, 'Ellis'),
         newClients: 4,
         existingClients: 3,
       );
@@ -1341,17 +1341,17 @@ void main() {
       expect(cloud.tables['weeks'], hasLength(1));
 
       // The boss's fresh device: its starter data is replaced by the cloud's.
-      StaffRepository(boss).rename(staffId(boss, 'Joy'), 'Not Joy');
+      StaffRepository(boss).rename(staffId(boss, 'Ellis'), 'Not Ellis');
       final b = SyncEngine(boss, cloud);
       expect(
         await b.pull(readToken: await cloud.profileLogin('director', '')),
         isTrue,
       );
       expect(b.pending, 0, reason: 'nothing from the boss device goes up');
-      final joy = staffId(boss, 'Joy');
+      final ellis = staffId(boss, 'Ellis');
       final day = WeekRepository(boss).getDays(week.id).first;
       expect(
-        ClientCountRepository(boss).countValues(day.id, joy).newClients,
+        ClientCountRepository(boss).countValues(day.id, ellis).newClients,
         4,
       );
     },
@@ -1369,7 +1369,7 @@ void main() {
     final day = WeekRepository(admin).getDays(week.id)[2];
     ClientCountRepository(admin).saveCount(
       dayId: day.id,
-      staffId: staffId(admin, 'Ian'),
+      staffId: staffId(admin, 'Devon'),
       newClients: 6,
       existingClients: 0,
     );
@@ -1377,7 +1377,7 @@ void main() {
     await b.pull(readToken: read);
     expect(
       ClientCountRepository(boss)
-          .countValues(day.id, staffId(boss, 'Ian'))
+          .countValues(day.id, staffId(boss, 'Devon'))
           .newClients,
       6,
     );
@@ -1395,18 +1395,18 @@ void main() {
     final a = SyncEngine(admin, cloud);
     await a.pull(token: token, readToken: token);
     final day = WeekRepository(admin).getDays(week.id).first;
-    final joy = staffId(admin, 'Joy');
+    final ellis = staffId(admin, 'Ellis');
     final counts = ClientCountRepository(admin);
     counts.saveCount(
       dayId: day.id,
-      staffId: joy,
+      staffId: ellis,
       newClients: 12,
       existingClients: 0,
     );
     // Offline: the change waits (a pull without the edit token keeps it),
     // then goes up.
     expect(await a.pull(readToken: token), isFalse);
-    expect(counts.countValues(day.id, joy).newClients, 12);
+    expect(counts.countValues(day.id, ellis).newClients, 12);
     cloud.offline = true;
     await expectLater(a.flush(token), throwsException);
     expect(a.pending, greaterThan(0));
@@ -1414,7 +1414,7 @@ void main() {
     await a.flush(token);
     expect(a.pending, 0);
     final up = cloud.tables['client_counts']!.values.firstWhere(
-      (r) => r['day_id'] == day.id && r['staff_id'] == joy,
+      (r) => r['day_id'] == day.id && r['staff_id'] == ellis,
     );
     expect(up['new_clients'], 12);
   });
@@ -1447,13 +1447,13 @@ void main() {
     cloud.refuseRow = (t, r) => t == 'client_counts' && r['new_clients'] == 99;
     counts.saveCount(
       dayId: days[0].id,
-      staffId: staffId(admin, 'Joy'),
+      staffId: staffId(admin, 'Ellis'),
       newClients: 99,
       existingClients: 0,
     );
     counts.saveCount(
       dayId: days[1].id,
-      staffId: staffId(admin, 'Ian'),
+      staffId: staffId(admin, 'Devon'),
       newClients: 5,
       existingClients: 0,
     );
@@ -1470,7 +1470,7 @@ void main() {
     // Later changes are not held up.
     counts.saveCount(
       dayId: days[2].id,
-      staffId: staffId(admin, 'Ian'),
+      staffId: staffId(admin, 'Devon'),
       newClients: 3,
       existingClients: 0,
     );
@@ -1790,17 +1790,17 @@ void main() {
     final a = SyncEngine(admin, cloud);
     await a.pull(token: token, readToken: token);
     final day = WeekRepository(admin).getDays(week.id).first;
-    final joy = staffId(admin, 'Joy');
+    final ellis = staffId(admin, 'Ellis');
     cloud.duringRead = () => ClientCountRepository(
       admin,
-    ).saveCount(dayId: day.id, staffId: joy, newClients: 9, existingClients: 0);
+    ).saveCount(dayId: day.id, staffId: ellis, newClients: 9, existingClients: 0);
     expect(await a.pull(token: token, readToken: token), isFalse);
     cloud.duringRead = null;
-    expect(ClientCountRepository(admin).countValues(day.id, joy).newClients, 9);
+    expect(ClientCountRepository(admin).countValues(day.id, ellis).newClients, 9);
     expect(a.pending, greaterThan(0)); // still to go up
     await a.pull(token: token, readToken: token);
     expect(a.pending, 0);
-    expect(ClientCountRepository(admin).countValues(day.id, joy).newClients, 9);
+    expect(ClientCountRepository(admin).countValues(day.id, ellis).newClients, 9);
   });
 
   testWidgets('changes from another device arrive while the app is open', (
@@ -1821,7 +1821,7 @@ void main() {
     final day = WeekRepository(admin).getDays(week.id)[1];
     ClientCountRepository(admin).saveCount(
       dayId: day.id,
-      staffId: staffId(admin, 'Ian'),
+      staffId: staffId(admin, 'Devon'),
       newClients: 5,
       existingClients: 1,
     );
@@ -1832,7 +1832,7 @@ void main() {
     expect(cloud.reads.length, greaterThan(before));
     expect(
       ClientCountRepository(boss)
-          .countValues(day.id, staffId(boss, 'Ian'))
+          .countValues(day.id, staffId(boss, 'Devon'))
           .newClients,
       5,
     );
@@ -1945,11 +1945,11 @@ void main() {
   testWidgets('accounts: Remember me opens straight in next time', (
     tester,
   ) async {
-    cloud.addUser('ian', 'ian-pass-12', role: UserRole.adminTeam);
+    cloud.addUser('devon', 'devon-pass-12', role: UserRole.adminTeam);
     var container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'ian', 'ian-pass-12', remember: true);
+    await signIn(tester, 'devon', 'devon-pass-12', remember: true);
     expect(container.read(sessionProvider), UserRole.adminTeam);
-    expect(AuthRepository(boss).rememberedUser?.user.username, 'ian');
+    expect(AuthRepository(boss).rememberedUser?.user.username, 'devon');
     container.dispose();
 
     // The app opened again: no sign-in screen, and the session checked.
@@ -1957,7 +1957,7 @@ void main() {
     final loginsBefore = cloud.logins.length;
     container = await pumpAccounts(tester, boss);
     await settle(tester);
-    expect(container.read(currentUserProvider)?.username, 'ian');
+    expect(container.read(currentUserProvider)?.username, 'devon');
     expect(cloud.logins.length, loginsBefore, reason: 'no password asked');
     expect(container.read(cloudSyncProvider).adminLinked, isTrue);
 
@@ -2005,11 +2005,11 @@ void main() {
   testWidgets('accounts: a temporary password must be replaced first', (
     tester,
   ) async {
-    cloud.addUser('joy', 'temp-1234', mustChange: true, name: 'Joy');
+    cloud.addUser('ellis', 'temp-1234', mustChange: true, name: 'Ellis');
     final container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'joy', 'temp-1234');
+    await signIn(tester, 'ellis', 'temp-1234');
     expect(container.read(currentUserProvider), isNull);
-    expect(find.text('Welcome, Joy'), findsOneWidget);
+    expect(find.text('Welcome, Ellis'), findsOneWidget);
 
     // Too short, then the same as the temporary one: refused.
     await tester.enterText(field('new-password'), 'short');
@@ -2023,12 +2023,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('different from the temporary'), findsOneWidget);
 
-    await tester.enterText(field('new-password'), 'joy-own-pass');
-    await tester.enterText(field('new-password-again'), 'joy-own-pass');
+    await tester.enterText(field('new-password'), 'ellis-own-pass');
+    await tester.enterText(field('new-password-again'), 'ellis-own-pass');
     await tester.tap(find.byKey(const ValueKey('new-password-save')));
     await settle(tester);
-    expect(container.read(currentUserProvider)?.username, 'joy');
-    expect(cloud.userPasswords[1], 'joy-own-pass');
+    expect(container.read(currentUserProvider)?.username, 'ellis');
+    expect(cloud.userPasswords[1], 'ellis-own-pass');
     expect(cloud.users[1]!.mustChange, isFalse);
     container.dispose();
   });
@@ -2041,7 +2041,7 @@ void main() {
     expect(find.text('Create the first admin account'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('setup-name')),
-      'Collins Korir',
+      'Blair Korir',
     );
     await tester.pump();
     expect(
@@ -2049,23 +2049,23 @@ void main() {
           .widget<TextField>(find.byKey(const ValueKey('setup-username')))
           .controller!
           .text,
-      'collins.korir',
+      'blair.korir',
     );
     await tester.enterText(field('setup-password'), 'admin-pass-1');
     await tester.enterText(field('setup-confirm'), 'admin-pass-1');
     await tester.tap(find.byKey(const ValueKey('setup-submit')));
     await settle(tester);
     expect(container.read(sessionProvider), UserRole.admin);
-    expect(cloud.users.values.single.username, 'collins.korir');
+    expect(cloud.users.values.single.username, 'blair.korir');
     container.dispose();
 
-    cloud.addUser('dennis', 'dennis-pass', active: false);
+    cloud.addUser('casey', 'casey-pass', active: false);
     await tester.pumpWidget(const SizedBox());
     container = await pumpAccounts(tester, admin);
-    await signIn(tester, 'dennis', 'dennis-pass');
+    await signIn(tester, 'casey', 'casey-pass');
     expect(find.textContaining('switched off'), findsOneWidget);
     for (var i = 0; i < 5; i++) {
-      await signIn(tester, 'collins.korir', 'nope-nope');
+      await signIn(tester, 'blair.korir', 'nope-nope');
     }
     expect(find.textContaining('Too many wrong passwords'), findsOneWidget);
     expect(container.read(currentUserProvider), isNull);
@@ -2075,9 +2075,9 @@ void main() {
   testWidgets('accounts: no internet — only a device signed in before', (
     tester,
   ) async {
-    cloud.addUser('whitney', 'whitney-pw1', role: UserRole.adminTeam);
+    cloud.addUser('gray', 'gray-pw1', role: UserRole.adminTeam);
     var container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'whitney', 'whitney-pw1');
+    await signIn(tester, 'gray', 'gray-pw1');
     container.dispose();
 
     cloud.offline = true;
@@ -2085,10 +2085,10 @@ void main() {
     container = await pumpAccounts(tester, boss);
     await signIn(tester, 'someone.new', 'whatever-1');
     expect(find.textContaining('No internet connection'), findsOneWidget);
-    await signIn(tester, 'whitney', 'wrong-pass-1');
+    await signIn(tester, 'gray', 'wrong-pass-1');
     expect(find.text('Username or password is incorrect.'), findsOneWidget);
-    await signIn(tester, 'whitney', 'whitney-pw1');
-    expect(container.read(currentUserProvider)?.username, 'whitney');
+    await signIn(tester, 'gray', 'gray-pw1');
+    expect(container.read(currentUserProvider)?.username, 'gray');
 
     // Back online: signed in online by itself, and changes can go up.
     cloud.offline = false;
@@ -2105,9 +2105,9 @@ void main() {
   testWidgets('accounts: an ended sign-in goes back to the sign-in screen', (
     tester,
   ) async {
-    cloud.addUser('talaam', 'talaam-pw1', role: UserRole.director);
+    cloud.addUser('indigo', 'indigo-pw1', role: UserRole.director);
     final container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'talaam', 'talaam-pw1', remember: true);
+    await signIn(tester, 'indigo', 'indigo-pw1', remember: true);
     expect(container.read(sessionProvider), UserRole.director);
 
     // The admin resets the password elsewhere.
@@ -2144,7 +2144,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('user-name')),
-      'Beatrice Achieng',
+      'Alex Achieng',
     );
     await tester.pump();
     final temp = tester
@@ -2155,9 +2155,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('user-save')));
     await settle(tester);
     final created = cloud.users.values.firstWhere(
-      (u) => u.fullName == 'Beatrice Achieng',
+      (u) => u.fullName == 'Alex Achieng',
     );
-    expect(created.username, 'beatrice.achieng');
+    expect(created.username, 'alex.achieng');
     expect(created.mustChange, isTrue);
     expect(cloud.userPasswords[created.id], temp);
     expect(find.textContaining('Temporary password: $temp'), findsOneWidget);
@@ -2165,7 +2165,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Forgot it: a new temporary password.
-    await tester.tap(find.byKey(const ValueKey('user-menu-beatrice.achieng')));
+    await tester.tap(find.byKey(const ValueKey('user-menu-alex.achieng')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Reset password'));
     await tester.pumpAndSettle();
@@ -2177,26 +2177,26 @@ void main() {
   });
 
   testWidgets('accounts: the sign-in screen fits a phone', (tester) async {
-    cloud.addUser('rhab', 'rhab-pass-1', role: UserRole.adminTeam);
+    cloud.addUser('harper', 'harper-pass-1', role: UserRole.adminTeam);
     final container = await pumpAccounts(
       tester,
       boss,
       size: const Size(360, 740),
     );
     expect(find.byKey(const ValueKey('login-remember')), findsOneWidget);
-    await signIn(tester, 'rhab', 'rhab-pass-1', remember: true);
-    expect(container.read(currentUserProvider)?.username, 'rhab');
+    await signIn(tester, 'harper', 'harper-pass-1', remember: true);
+    expect(container.read(currentUserProvider)?.username, 'harper');
     container.dispose();
   });
 
   test('usernames are suggested from names', () {
     expect(AppUser.suggestUsername('Mary Wanjiku'), 'mary.wanjiku');
-    expect(AppUser.suggestUsername('  Director/Eve '), 'director.eve');
-    expect(AppUser.suggestUsername('Canisius Yego'), 'canisius.yego');
+    expect(AppUser.suggestUsername('  Logan '), 'director.logan');
+    expect(AppUser.suggestUsername('Morgan'), 'canisius.yego');
     expect(AppUser.suggestUsername('Jo'), 'jo1');
-    expect(AppUser.suggestUsername('Joy', taken: ['joy']), 'joy2');
+    expect(AppUser.suggestUsername('Ellis', taken: ['ellis']), 'joy2');
     expect(AppUser.suggestUsername('Zoë O’Neil'), 'zoe.oneil');
-    for (final n in ['Mary Wanjiku', 'Director/Eve', 'Jo', 'Zoë O’Neil']) {
+    for (final n in ['Mary Wanjiku', 'Logan', 'Jo', 'Zoë O’Neil']) {
       expect(
         AppUser.usernamePattern.hasMatch(AppUser.suggestUsername(n)),
         true,
@@ -3936,10 +3936,10 @@ void main() {
   testWidgets('accounts: backing out of a temporary password ends it', (
     tester,
   ) async {
-    cloud.addUser('joy', 'temp-1234', mustChange: true, name: 'Joy');
+    cloud.addUser('ellis', 'temp-1234', mustChange: true, name: 'Ellis');
     final container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'joy', 'temp-1234');
-    expect(find.text('Welcome, Joy'), findsOneWidget);
+    await signIn(tester, 'ellis', 'temp-1234');
+    expect(find.text('Welcome, Ellis'), findsOneWidget);
     expect(cloud.userTokens, hasLength(1));
     await tester.tap(find.text('Back'));
     await settle(tester);
@@ -3951,16 +3951,16 @@ void main() {
   testWidgets('accounts: a server hiccup doesn’t end an offline sign-in', (
     tester,
   ) async {
-    cloud.addUser('whitney', 'whitney-pw1', role: UserRole.adminTeam);
+    cloud.addUser('gray', 'gray-pw1', role: UserRole.adminTeam);
     var container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'whitney', 'whitney-pw1');
+    await signIn(tester, 'gray', 'gray-pw1');
     container.dispose();
 
     cloud.offline = true;
     await tester.pumpWidget(const SizedBox());
     container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'whitney', 'whitney-pw1');
-    expect(container.read(currentUserProvider)?.username, 'whitney');
+    await signIn(tester, 'gray', 'gray-pw1');
+    expect(container.read(currentUserProvider)?.username, 'gray');
 
     // Back online, but the server refuses for another reason.
     cloud.offline = false;
@@ -3969,8 +3969,8 @@ void main() {
       () => container.read(cloudSyncProvider.notifier).syncNow(),
     );
     await tester.pumpAndSettle();
-    expect(container.read(currentUserProvider)?.username, 'whitney');
-    expect(AuthRepository(boss).knowsUser('whitney'), isTrue);
+    expect(container.read(currentUserProvider)?.username, 'gray');
+    expect(AuthRepository(boss).knowsUser('gray'), isTrue);
 
     // Next time it works.
     await tester.runAsync(
@@ -3984,19 +3984,19 @@ void main() {
   testWidgets('accounts: a late online sign-in after signing out is ended', (
     tester,
   ) async {
-    cloud.addUser('whitney', 'whitney-pw1', role: UserRole.adminTeam);
+    cloud.addUser('gray', 'gray-pw1', role: UserRole.adminTeam);
     var container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'whitney', 'whitney-pw1');
+    await signIn(tester, 'gray', 'gray-pw1');
     container.dispose();
 
     cloud.offline = true;
     await tester.pumpWidget(const SizedBox());
     container = await pumpAccounts(tester, boss);
-    await signIn(tester, 'whitney', 'whitney-pw1');
-    expect(container.read(currentUserProvider)?.username, 'whitney');
+    await signIn(tester, 'gray', 'gray-pw1');
+    expect(container.read(currentUserProvider)?.username, 'gray');
     cloud.userTokens.clear();
 
-    // Back online; the sign-in is slow, and Whitney signs out meanwhile.
+    // Back online; the sign-in is slow, and Gray signs out meanwhile.
     cloud.offline = false;
     final gate = cloud.loginGate = Completer<void>();
     final sync = container.read(cloudSyncProvider.notifier);
@@ -4005,7 +4005,7 @@ void main() {
       running = sync.syncNow();
       await Future<void>.delayed(const Duration(milliseconds: 20));
     });
-    expect(cloud.logins.last, 'whitney');
+    expect(cloud.logins.last, 'gray');
     await tester.runAsync(sync.signOutUser);
     gate.complete();
     for (var i = 0; i < 5; i++) {
@@ -4600,8 +4600,8 @@ void main() {
         null,
       ),
     );
-    cloud.addUser('joy', 'joy-pass-1', name: 'Joy', departmentId: 1);
-    cloud.addUser('ian', 'ian-pass-1', name: 'Ian', departmentId: 2);
+    cloud.addUser('ellis', 'ellis-pass-1', name: 'Ellis', departmentId: 1);
+    cloud.addUser('devon', 'devon-pass-1', name: 'Devon', departmentId: 2);
     cloud.addUser(
       'ruth',
       'ruth-pass-1',
@@ -4619,7 +4619,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       copied,
-      anyOf(contains('Hi Ian and Joy'), contains('Hi Joy and Ian')),
+      anyOf(contains('Hi Devon and Ellis'), contains('Hi Ellis and Devon')),
     );
     expect(copied, contains('S&A Hub'));
     container.dispose();

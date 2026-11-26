@@ -30,10 +30,10 @@ void main() {
     test('seeds the current spreadsheet staff on first open', () {
       final staff = staffRepo.getAll();
       expect(staff.length, 14);
-      expect(staff.first.name, 'Beatrice');
+      expect(staff.first.name, 'Alex');
       expect(
         staff.map((s) => s.name),
-        containsAll(['Joy', 'Director/Eve', 'Cinthia']),
+        containsAll(['Ellis', 'Logan', 'Nico']),
       );
     });
 
@@ -106,24 +106,24 @@ void main() {
     test('values are cumulative — 3 then 5 stores 5, not 8', () {
       final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
       final monday = weekRepo.getDays(week.id).first;
-      final joy = staffRepo.getAll().firstWhere((s) => s.name == 'Joy');
+      final ellis = staffRepo.getAll().firstWhere((s) => s.name == 'Ellis');
 
       countRepo.saveCount(
         dayId: monday.id,
-        staffId: joy.id,
+        staffId: ellis.id,
         newClients: 3,
         existingClients: 0,
       );
-      var row = countRepo.getDayWithCounts(monday.id).countFor(joy.id);
+      var row = countRepo.getDayWithCounts(monday.id).countFor(ellis.id);
       expect(row.newClients, 3);
 
       countRepo.saveCount(
         dayId: monday.id,
-        staffId: joy.id,
+        staffId: ellis.id,
         newClients: 5,
         existingClients: 0,
       );
-      row = countRepo.getDayWithCounts(monday.id).countFor(joy.id);
+      row = countRepo.getDayWithCounts(monday.id).countFor(ellis.id);
       expect(row.newClients, 5, reason: 'cumulative overwrite, not add');
     });
   });
@@ -132,24 +132,24 @@ void main() {
     test('week totals derive from day rows with daily average', () {
       final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
       final days = weekRepo.getDays(week.id);
-      final joy = staffRepo.getAll().firstWhere((s) => s.name == 'Joy');
-      final ian = staffRepo.getAll().firstWhere((s) => s.name == 'Ian');
+      final ellis = staffRepo.getAll().firstWhere((s) => s.name == 'Ellis');
+      final devon = staffRepo.getAll().firstWhere((s) => s.name == 'Devon');
 
       countRepo.saveCount(
         dayId: days[0].id,
-        staffId: joy.id,
+        staffId: ellis.id,
         newClients: 2,
         existingClients: 3,
       );
       countRepo.saveCount(
         dayId: days[0].id,
-        staffId: ian.id,
+        staffId: devon.id,
         newClients: 1,
         existingClients: 0,
       );
       countRepo.saveCount(
         dayId: days[1].id,
-        staffId: joy.id,
+        staffId: ellis.id,
         newClients: 0,
         existingClients: 5,
       );
@@ -167,23 +167,23 @@ void main() {
     test('staff week totals include deactivated staff history', () {
       final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
       final days = weekRepo.getDays(week.id);
-      final beatrice = staffRepo.getAll().firstWhere(
-        (s) => s.name == 'Beatrice',
+      final alex = staffRepo.getAll().firstWhere(
+        (s) => s.name == 'Alex',
       );
 
       countRepo.saveCount(
         dayId: days[0].id,
-        staffId: beatrice.id,
+        staffId: alex.id,
         newClients: 2,
         existingClients: 9,
       );
 
-      // Beatrice leaves the company → deactivate.
-      staffRepo.setActive(beatrice.id, false);
+      // Alex leaves the company → deactivate.
+      staffRepo.setActive(alex.id, false);
 
       // History still shows her numbers.
       final staffTotals = stats.staffWeekTotals(week);
-      final hers = staffTotals.firstWhere((t) => t.name == 'Beatrice');
+      final hers = staffTotals.firstWhere((t) => t.name == 'Alex');
       expect(hers.total, 11);
 
       // New weeks exclude her…
@@ -191,22 +191,22 @@ void main() {
       final day1 = countRepo.getDayWithCounts(
         weekRepo.getDays(week2.id).first.id,
       );
-      expect(day1.rows.map((r) => r.staffName), isNot(contains('Beatrice')));
+      expect(day1.rows.map((r) => r.staffName), isNot(contains('Alex')));
       // …but the old week still lists her with her numbers.
       final oldDay = countRepo.getDayWithCounts(days[0].id);
-      expect(oldDay.rows.firstWhere((r) => r.staffId == beatrice.id).total, 11);
+      expect(oldDay.rows.firstWhere((r) => r.staffId == alex.id).total, 11);
     });
 
     test('month totals aggregate from stored day data', () {
       final week1 = weekRepo.createWeekFor(DateTime(2026, 9, 28));
       final week2 = weekRepo.createWeekFor(DateTime(2026, 9, 21));
-      final joy = staffRepo.getAll().firstWhere((s) => s.name == 'Joy');
+      final ellis = staffRepo.getAll().firstWhere((s) => s.name == 'Ellis');
 
       for (final w in [week1, week2]) {
         final days = weekRepo.getDays(w.id);
         countRepo.saveCount(
           dayId: days[0].id,
-          staffId: joy.id,
+          staffId: ellis.id,
           newClients: 1,
           existingClients: 2,
         );
@@ -215,7 +215,7 @@ void main() {
       final oct = weekRepo.createWeekFor(DateTime(2026, 10, 5));
       countRepo.saveCount(
         dayId: weekRepo.getDays(oct.id).first.id,
-        staffId: joy.id,
+        staffId: ellis.id,
         newClients: 100,
         existingClients: 0,
       );
@@ -223,7 +223,7 @@ void main() {
       final sept = stats.monthTotals(DateTime(2026, 9, 15));
       expect(sept.newClients, 2);
       expect(sept.existingClients, 4);
-      expect(sept.staffTotals.firstWhere((t) => t.name == 'Joy').total, 6);
+      expect(sept.staffTotals.firstWhere((t) => t.name == 'Ellis').total, 6);
     });
   });
 
@@ -243,24 +243,24 @@ void main() {
     test('delete removes counts; deactivate keeps them', () {
       final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
       final monday = weekRepo.getDays(week.id).first;
-      final collins = staffRepo.getAll().firstWhere((s) => s.name == 'Collins');
+      final blair = staffRepo.getAll().firstWhere((s) => s.name == 'Blair');
       countRepo.saveCount(
         dayId: monday.id,
-        staffId: collins.id,
+        staffId: blair.id,
         newClients: 4,
         existingClients: 1,
       );
 
-      staffRepo.setActive(collins.id, false);
+      staffRepo.setActive(blair.id, false);
       expect(
-        countRepo.getDayWithCounts(monday.id).countFor(collins.id).newClients,
+        countRepo.getDayWithCounts(monday.id).countFor(blair.id).newClients,
         4,
       );
 
-      staffRepo.delete(collins.id);
+      staffRepo.delete(blair.id);
       expect(
         db.raw.select('SELECT * FROM client_counts WHERE staff_id = ?;', [
-          collins.id,
+          blair.id,
         ]),
         isEmpty,
       );
@@ -270,21 +270,21 @@ void main() {
   test('batched week load matches loading each day on its own', () {
     final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
     final days = weekRepo.getDays(week.id);
-    final joy = staffRepo.getAll().firstWhere((s) => s.name == 'Joy');
-    final ian = staffRepo.getAll().firstWhere((s) => s.name == 'Ian');
+    final ellis = staffRepo.getAll().firstWhere((s) => s.name == 'Ellis');
+    final devon = staffRepo.getAll().firstWhere((s) => s.name == 'Devon');
     countRepo.saveCount(
       dayId: days[0].id,
-      staffId: joy.id,
+      staffId: ellis.id,
       newClients: 3,
       existingClients: 2,
     );
     countRepo.saveCount(
       dayId: days[3].id,
-      staffId: ian.id,
+      staffId: devon.id,
       newClients: 0,
       existingClients: 5,
     );
-    TimeOffRepository(db).setDay(dayId: days[2].id, staffId: joy.id, off: true);
+    TimeOffRepository(db).setDay(dayId: days[2].id, staffId: ellis.id, off: true);
 
     final batched = countRepo.weekDaysWithCounts(week.id);
     final single = [for (final d in days) countRepo.getDayWithCounts(d.id)];
@@ -303,7 +303,7 @@ void main() {
     }
     // Timestamps still read correctly although they're parsed lazily.
     expect(
-      batched[0].countFor(joy.id).updatedAt.isAfter(DateTime(2020)),
+      batched[0].countFor(ellis.id).updatedAt.isAfter(DateTime(2020)),
       isTrue,
     );
     expect(week.createdAt.isAfter(DateTime(2020)), isTrue);
@@ -313,10 +313,10 @@ void main() {
     test('produces a valid xlsx from database data', () {
       final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
       final days = weekRepo.getDays(week.id);
-      final joy = staffRepo.getAll().firstWhere((s) => s.name == 'Joy');
+      final ellis = staffRepo.getAll().firstWhere((s) => s.name == 'Ellis');
       countRepo.saveCount(
         dayId: days[0].id,
-        staffId: joy.id,
+        staffId: ellis.id,
         newClients: 2,
         existingClients: 4,
       );

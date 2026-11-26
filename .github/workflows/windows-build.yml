@@ -55,15 +55,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: |
-          if (-not $env:SUPABASE_URL -or -not $env:SUPABASE_KEY) {
-            Write-Error "SUPABASE_URL / SUPABASE_KEY repository secrets are missing - the app would build without online sync. Add them under Settings > Secrets and variables > Actions > Repository secrets."
-            exit 1
-          }
-          if ($env:SUPABASE_URL.Trim() -notmatch '^https://[a-z0-9]+\.supabase\.co$') {
-            Write-Error "SUPABASE_URL should look like https://<ref>.supabase.co (no /rest/v1/, no trailing slash)."
-            exit 1
-          }
+        run: dart run tool/check_public_cloud_config.dart
 
       - name: Build Windows release
         env:

@@ -22,12 +22,12 @@ void main() {
   String csv() =>
       'Student name,RTO name,Country,Doc submit date,App submitted date,'
       'Offer letter received date,COE issue date,Status,Assignee,To do list\n'
-      'Alice Late,ECU,Australia,,"${ago(12)}",,,Awaiting offer letter,Joy,\n'
-      'Ben Recent,AIBT,Australia,,"${ago(3)}",,,Awaiting offer letter,Ian,\n'
+      'Alice Late,ECU,Australia,,"${ago(12)}",,,Awaiting offer letter,Ellis,\n'
+      'Ben Recent,AIBT,Australia,,"${ago(3)}",,,Awaiting offer letter,Devon,\n'
       'Cara Offered,KCBT,Australia,,"${ago(30)}","${ago(5)}",,'
-      'To pay school fees,Joy,\n'
+      'To pay school fees,Ellis,\n'
       'Dan Fees,SCU,Australia,,"${ago(40)}",,,To pay school fees,,\n'
-      'Eve Draft,UOW,Australia,,,,,Statement building,Winnie,\n';
+      'Logan Draft,UOW,Australia,,,,,Statement building,Parker,\n';
 
   test('the offer reminder rule', () {
     final repo = ApplicationRepository(db)..importCsv(csv());
@@ -38,7 +38,7 @@ void main() {
     expect(by['Ben Recent']!.offerOverdue(today), isFalse);
     expect(by['Cara Offered']!.offerWaitDays(today), isNull); // has an offer
     expect(by['Dan Fees']!.offerWaitDays(today), isNull); // past that stage
-    expect(by['Eve Draft']!.offerWaitDays(today), isNull); // not submitted
+    expect(by['Logan Draft']!.offerWaitDays(today), isNull); // not submitted
     // Exactly 7 days is not yet "more than 7".
     expect(ApplicationRepository.offerReminderDays, 7);
   });
@@ -104,7 +104,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(top('Alice Late'), lessThan(top('Ben Recent')));
     expect(top('Ben Recent'), lessThan(top('Cara Offered')));
-    expect(top('Dan Fees'), lessThan(top('Eve Draft')));
+    expect(top('Dan Fees'), lessThan(top('Logan Draft')));
 
     // Applied, oldest first: Dan (40 days) before Alice (12).
     await tester.tap(find.byKey(const ValueKey('applications-sort')));

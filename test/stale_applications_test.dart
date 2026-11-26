@@ -140,8 +140,8 @@ void main() {
     final repo = ApplicationRepository(db);
     const csv =
         'Student name,RTO name,Country,Status,Assignee,To do list\n'
-        'Amina Test,WAIFS,Australia,Statement building,Joy,\n'
-        'Brian Sample,NPA,Australia,Awaiting offer letter,Ian,\n';
+        'Amina Test,WAIFS,Australia,Statement building,Ellis,\n'
+        'Brian Sample,NPA,Australia,Awaiting offer letter,Devon,\n';
     repo.importCsv(csv);
     expect(repo.lastChanges(), isEmpty); // the first upload isn't a change
     repo.importCsv(
@@ -150,7 +150,7 @@ void main() {
     repo.importCsv(
       csv
           .replaceFirst('Statement building', 'To pay school fees')
-          .replaceFirst('Joy,', 'Joy,Waiting on bank letter'),
+          .replaceFirst('Ellis,', 'Ellis,Waiting on bank letter'),
     );
     final last = repo.lastChanges();
     expect(last.keys, ['amina test']);

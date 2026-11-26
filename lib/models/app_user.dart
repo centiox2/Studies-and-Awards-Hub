@@ -106,7 +106,7 @@ class AppUser {
   static const minPasswordLength = 8;
 
   /// A sensible username from a person's name: "Mary Wanjiku" →
-  /// "mary.wanjiku", "Director/Eve" → "director.eve". Adds 2, 3… when
+  /// "alex.morgan", "Director/Alex" → "director.alex". Adds 2, 3… when
   /// [taken] already has it.
   static String suggestUsername(
     String name, {

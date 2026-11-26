@@ -44,7 +44,7 @@ them directly. Learn more
   test('several messages in one photo, and OCR mistakes in numbers', () {
     const two = '''
 UK3JPO8PVA Confirmed. on 3/11/26 at 1:38 PM Ksh45,740.00 received from
-DAVID KANGOGO 254722699840. Account Number Leonorah New Utility balance is Ksh106,520.00
+EXAMPLE PAYER 254722699840. Account Number Leonorah New Utility balance is Ksh106,520.00
 UK3JQ12ABC Confirmed. on 3/11/26 at 2:05 PM Ksh1O,5OO.00 received from
 JANE WANJIKU 254711000111. Account Number Brian New Utility balance is Ksh117,020.00
 ''';
@@ -102,7 +102,7 @@ JANE WANJIKU 254711000111. Account Number Brian New Utility balance is Ksh117,02
   test('amounts survive what text recognition does to them', () {
     int read(String amount) => parsePayments(
       'UK3JPO8PVA Confirmed. on 3/11/26 at 1:38 PM $amount received from '
-      'DAVID KANGOGO 254722699840. New Utility balance is Ksh106,520.00',
+      'EXAMPLE PAYER 254722699840. New Utility balance is Ksh106,520.00',
     ).single.amountCents;
     expect(read('Ksh45,740.00'), 4574000);
     expect(read('Ksh45740.00'), 4574000); // commas lost
