@@ -255,7 +255,7 @@ Future<String?> _textDialog(
         textAlignVertical: TextAlignVertical.top,
         decoration: const InputDecoration(
           hintText:
-              'UK3JPO8PVA Confirmed. on 3/11/26 at 1:38 PM '
+              'EX4AMPO8PA Confirmed. on 3/11/26 at 1:38 PM '
               'Ksh45,740.00 received from …',
         ),
       );

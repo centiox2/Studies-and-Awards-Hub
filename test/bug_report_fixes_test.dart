@@ -20,11 +20,11 @@ import 'package:client_tracker/services/revenue_export.dart';
 import 'package:client_tracker/widgets/numeric_field.dart';
 
 const _airtel =
-    'Ksh.1500 received from JOHN DOE 0733123456 on 3/11/26 at 2:15 PM via '
+    'Ksh.1500 received from JOHN DOE 0700000002 on 3/11/26 at 2:15 PM via '
     'Airtel Money. New balance Ksh. 3,000.';
 const _mpesa =
-    'UK3JPO8PVA Confirmed. Ksh500.00 received from EXAMPLE PAYER 0712345678 '
-    'on 3/11/26 at 1:38 PM New M-PESA balance is Ksh106,520.00. Transaction '
+    'EX4AMPO8PA Confirmed. Ksh500.00 received from EXAMPLE PAYER 0700000000 '
+    'on 3/11/26 at 1:38 PM New M-PESA balance is Ksh67,890.00. Transaction '
     'cost, Ksh0.00.';
 const _bank =
     'Ksh2,000.00 received from ACME LTD via Equity Bank Ref: TT2345. Avail. '
@@ -46,7 +46,7 @@ void main() {
       final ps = parsePayments('$_mpesa $_airtel');
       expect(ps.map((p) => p.amountCents), [50000, 150000]);
       expect(ps.map((p) => p.method), ['M-Pesa', 'Airtel Money']);
-      expect(ps.first.code, 'UK3JPO8PVA');
+      expect(ps.first.code, 'EX4AMPO8PA');
       expect(ps.last.code, isNull);
     });
 
@@ -110,7 +110,7 @@ void main() {
   group('3: money going out', () {
     test('saved as a refund (negative), lowering the day', () {
       final sent = parsePayments(
-        'UK3JPO8PVB Confirmed. Ksh2,000.00 sent to JOHN DOE 0712345678 on '
+        'UK3JPO8PVB Confirmed. Ksh2,000.00 sent to JOHN DOE 0700000000 on '
         '3/11/26 at 1:38 PM. New M-PESA balance is Ksh1,000.00.',
       ).single;
       expect(sent.incoming, isFalse);

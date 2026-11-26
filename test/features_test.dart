@@ -474,7 +474,7 @@ void main() {
       );
       counts.saveCount(
         dayId: days[2].id,
-        staffId: staffId('Logan'),
+        staffId: staffId('Director/Logan'),
         newClients: 1,
         existingClients: 7,
       );
@@ -543,7 +543,7 @@ void main() {
         isA<MatchStaff>().having(
           (t) => t.staffId,
           'id',
-          staffId('Logan'),
+          staffId('Director/Logan'),
         ),
       );
       expect(

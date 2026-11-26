@@ -267,7 +267,7 @@ class RevenueRepository {
 
   /// Which of [codes] (transaction codes) are already in a saved note —
   /// so the same message can't be added twice. Letter O and zero count as
-  /// the same: text readers mix them up ("UK3JPO8PVA" vs "UK3JP08PVA"), and
+  /// the same: text readers mix them up ("EX4AMPO8PA" vs "EX4AMP08PA"), and
   /// the phone and the PC may read the same photo differently.
   Set<String> existingCodes(Iterable<String> codes) => {
     for (final c in codes)

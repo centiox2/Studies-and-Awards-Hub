@@ -6,18 +6,18 @@ void main() {
   // cut-off end of the previous message at the top.
   const photo = '''
 balance is
-Ksh60,780.00
-UK3JPO8PVA
+Ksh4,321.00
+EX4AMPO8PA
 Confirmed. on 3/11/26 at
-1:38 PM Ksh45,740.00
-received from DAVID
-KIMURKONG
-KANGOGO
-254722699840.
+1:38 PM Ksh12,345.00
+received from ALEX
+SAMPLE
+PAYER
+254700000000.
 Account Number
-Leonorah Cherop New
+Example Student New
 Utility balance is
-Ksh106,520.00
+Ksh67,890.00
 Sender can't accept replies. Contact
 them directly. Learn more
 ''';
@@ -26,16 +26,16 @@ them directly. Learn more
     final found = parsePayments(photo);
     expect(found, hasLength(1));
     final p = found.single;
-    expect(p.amountCents, 4574000);
-    expect(p.code, 'UK3JPO8PVA');
-    expect(p.payer, 'DAVID KIMURKONG KANGOGO');
-    expect(p.account, 'Leonorah Cherop');
+    expect(p.amountCents, 1234500);
+    expect(p.code, 'EX4AMPO8PA');
+    expect(p.payer, 'ALEX SAMPLE PAYER');
+    expect(p.account, 'Example Student');
     expect(p.time, DateTime(2026, 11, 3, 13, 38));
     expect(p.method, 'M-Pesa');
     expect(p.incoming, isTrue);
     expect(
       p.note,
-      'UK3JPO8PVA · M-Pesa · David Kimurkong Kangogo · Acc: Leonorah Cherop',
+      'EX4AMPO8PA · M-Pesa · Alex Sample Payer · Acc: Example Student',
     );
     // The phone number is not kept.
     expect(p.note, isNot(contains('2547')));
@@ -43,21 +43,21 @@ them directly. Learn more
 
   test('several messages in one photo, and OCR mistakes in numbers', () {
     const two = '''
-UK3JPO8PVA Confirmed. on 3/11/26 at 1:38 PM Ksh45,740.00 received from
-EXAMPLE PAYER 254722699840. Account Number Leonorah New Utility balance is Ksh106,520.00
-UK3JQ12ABC Confirmed. on 3/11/26 at 2:05 PM Ksh1O,5OO.00 received from
-JANE WANJIKU 254711000111. Account Number Brian New Utility balance is Ksh117,020.00
+EX4AMPO8PA Confirmed. on 3/11/26 at 1:38 PM Ksh12,345.00 received from
+EXAMPLE PAYER 254700000000. Account Number Example Student New Utility balance is Ksh67,890.00
+EX5TEST2CD Confirmed. on 3/11/26 at 2:05 PM Ksh1O,5OO.00 received from
+BLAIR SAMPLE 254700000005. Account Number Brian New Utility balance is Ksh117,020.00
 ''';
     final found = parsePayments(two);
-    expect(found.map((p) => p.amountCents), [4574000, 1050000]);
-    expect(found.map((p) => p.code), ['UK3JPO8PVA', 'UK3JQ12ABC']);
+    expect(found.map((p) => p.amountCents), [1234500, 1050000]);
+    expect(found.map((p) => p.code), ['EX4AMPO8PA', 'EX5TEST2CD']);
     expect(found.last.time, DateTime(2026, 11, 3, 14, 5));
   });
 
   test('personal M-Pesa "You have received" format', () {
     final p = parsePayments(
       'SJK4ABC12D Confirmed.You have received Ksh2,000.00 from JOHN DOE '
-      '0712345678 on 5/11/26 at 9:15 AM New M-PESA balance is Ksh12,345.00. '
+      '0700000000 on 5/11/26 at 9:15 AM New M-PESA balance is Ksh12,345.00. '
       'Earn interest daily on Ziidi MMF',
     ).single;
     expect(p.amountCents, 200000);
@@ -67,7 +67,7 @@ JANE WANJIKU 254711000111. Account Number Brian New Utility balance is Ksh117,02
 
   test('money going out is marked, so it is not counted', () {
     final p = parsePayments(
-      'SJK4XYZ99Q Confirmed. Ksh500.00 sent to MARY A 0722000000 on 5/11/26 '
+      'SJK4XYZ99Q Confirmed. Ksh500.00 sent to MARY A 0700000002 on 5/11/26 '
       'at 10:00 AM. New M-PESA balance is Ksh900.00. Transaction cost, Ksh7.00.',
     ).single;
     expect(p.amountCents, 50000);
@@ -96,21 +96,21 @@ JANE WANJIKU 254711000111. Account Number Brian New Utility balance is Ksh117,02
   test('nothing to find', () {
     expect(parsePayments(''), isEmpty);
     expect(parsePayments('Hello, see you tomorrow'), isEmpty);
-    expect(parsePayments('Your balance is Ksh60,780.00'), isEmpty);
+    expect(parsePayments('Your balance is Ksh4,321.00'), isEmpty);
   });
 
   test('amounts survive what text recognition does to them', () {
     int read(String amount) => parsePayments(
-      'UK3JPO8PVA Confirmed. on 3/11/26 at 1:38 PM $amount received from '
-      'EXAMPLE PAYER 254722699840. New Utility balance is Ksh106,520.00',
+      'EX4AMPO8PA Confirmed. on 3/11/26 at 1:38 PM $amount received from '
+      'EXAMPLE PAYER 254700000000. New Utility balance is Ksh67,890.00',
     ).single.amountCents;
-    expect(read('Ksh45,740.00'), 4574000);
-    expect(read('Ksh45740.00'), 4574000); // commas lost
-    expect(read('Ksh45, 740.00'), 4574000); // stray space
-    expect(read('Ksh45.740.00'), 4574000); // comma read as a dot
-    expect(read('Ksh 45 740.00'), 4574000);
-    expect(read('Ksh45,740.0O'), 4574000); // 0 read as O
-    expect(read('Ksh1,245,740.00'), 124574000);
+    expect(read('Ksh12,345.00'), 1234500);
+    expect(read('Ksh12345.00'), 1234500); // commas lost
+    expect(read('Ksh12, 345.00'), 1234500); // stray space
+    expect(read('Ksh12.345.00'), 1234500); // comma read as a dot
+    expect(read('Ksh 12 345.00'), 1234500);
+    expect(read('Ksh12,345.0O'), 1234500); // 0 read as O
+    expect(read('Ksh1,212,345.00'), 121234500);
     expect(read('Ksh1,500'), 150000);
     expect(read('Ksh500'), 50000);
   });
@@ -118,7 +118,7 @@ JANE WANJIKU 254711000111. Account Number Brian New Utility balance is Ksh117,02
   test('a name with an initial is kept whole', () {
     final p = parsePayments(
       'SJK4ABC12D Confirmed.You have received Ksh2,000.00 from ALICE K. '
-      'MWANGI 0712345678 on 5/11/26 at 9:15 AM New M-PESA balance is Ksh1.00',
+      'MWANGI 0700000000 on 5/11/26 at 9:15 AM New M-PESA balance is Ksh1.00',
     ).single;
     expect(p.payer, 'ALICE K. MWANGI');
     expect(p.amountCents, 200000);
@@ -127,7 +127,7 @@ JANE WANJIKU 254711000111. Account Number Brian New Utility balance is Ksh117,02
   test('older messages keep their own date', () {
     final p = parsePayments(
       'QF71ABC2XY Confirmed. on 14/2/23 at 9:05 AM Ksh3,500.00 received from '
-      'MARY W 254700111222. New Utility balance is Ksh10.00',
+      'MARY W 254700000004. New Utility balance is Ksh10.00',
     ).single;
     expect(p.time, DateTime(2023, 2, 14, 9, 5));
   });

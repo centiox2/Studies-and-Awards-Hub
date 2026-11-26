@@ -1445,8 +1445,8 @@ Future<void> showRevenueHistory(BuildContext context, WidgetRef ref) {
   );
 }
 
-/// The payer's name in a scanned payment's note ("M-Pesa · David Kangogo ·
-/// Acc: … · CODE" → "David Kangogo"); null for notes without one.
+/// The payer's name in a scanned payment's note ("M-Pesa · David Payer ·
+/// Acc: … · CODE" → "David Payer"); null for notes without one.
 String? payerOf(String note) {
   final parts = note.split(' · ');
   if (parts.length < 2) return null;

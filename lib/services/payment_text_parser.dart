@@ -27,10 +27,10 @@ class ParsedPayment {
   /// "M-Pesa", "Airtel Money", "Bank", or "Payment" when unknown.
   final String method;
 
-  /// The transaction code (e.g. "UK3JPO8PVA"), used to spot duplicates.
+  /// The transaction code (e.g. "EX4AMPO8PA"), used to spot duplicates.
   final String? code;
 
-  /// Who paid, e.g. "DAVID KIMURKONG KANGOGO".
+  /// Who paid, e.g. "DAVID SAMPLE PAYER".
   final String? payer;
 
   /// The paybill/till account reference, e.g. a student's name.
@@ -77,7 +77,7 @@ class ParsedPayment {
 
   static String? _title(String? name) {
     if (name == null) return null;
-    // "DAVID KIMURKONG KANGOGO" → "David Kimurkong Kangogo"
+    // "DAVID SAMPLE PAYER" → "David Sample Payer"
     return name
         .split(' ')
         .where((w) => w.isNotEmpty)
@@ -143,7 +143,7 @@ List<ParsedPayment> parsePayments(String text) {
   final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (flat.isEmpty) return const [];
 
-  // M-Pesa messages start with their transaction code ("UK3JPO8PVA
+  // M-Pesa messages start with their transaction code ("EX4AMPO8PA
   // Confirmed"); whatever comes before the first one (an Airtel or bank
   // message, say) is a message too.
   final starts = [
@@ -259,7 +259,7 @@ int? _cents(String raw) {
 }
 
 String? _payer(String body) {
-  // Case matters here: a full stop then a capitalised word ("… KANGOGO.
+  // Case matters here: a full stop then a capitalised word ("… PAYER.
   // Account …") ends the name; an initial ("ALICE K. MWANGI") doesn't.
   final m = RegExp(
     r'\b[Ff][Rr][Oo][Mm]\s+(.+?)(?=[\s-]*(?:\+?\d[\d\s*xX]{5,}|\*{2,}|\b(?:[Oo][Nn]|[Aa][Tt])\s+\d|\.\s+(?=[A-Z][a-z])|\.$|\b(?:Account|ACCOUNT|account|Acc|ACC|New|NEW|via|VIA|Via|Ref|REF)\b|$))',

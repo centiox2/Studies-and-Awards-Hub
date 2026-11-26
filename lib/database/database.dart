@@ -477,7 +477,7 @@ class AppDatabase {
       'Indigo',
       'Jordan',
       'Kelly',
-      'Logan',
+      'Director/Logan',
       'Morgan',
       'Nico',
     ];

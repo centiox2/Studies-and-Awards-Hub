@@ -1791,16 +1791,25 @@ void main() {
     await a.pull(token: token, readToken: token);
     final day = WeekRepository(admin).getDays(week.id).first;
     final ellis = staffId(admin, 'Ellis');
-    cloud.duringRead = () => ClientCountRepository(
-      admin,
-    ).saveCount(dayId: day.id, staffId: ellis, newClients: 9, existingClients: 0);
+    cloud.duringRead = () => ClientCountRepository(admin).saveCount(
+      dayId: day.id,
+      staffId: ellis,
+      newClients: 9,
+      existingClients: 0,
+    );
     expect(await a.pull(token: token, readToken: token), isFalse);
     cloud.duringRead = null;
-    expect(ClientCountRepository(admin).countValues(day.id, ellis).newClients, 9);
+    expect(
+      ClientCountRepository(admin).countValues(day.id, ellis).newClients,
+      9,
+    );
     expect(a.pending, greaterThan(0)); // still to go up
     await a.pull(token: token, readToken: token);
     expect(a.pending, 0);
-    expect(ClientCountRepository(admin).countValues(day.id, ellis).newClients, 9);
+    expect(
+      ClientCountRepository(admin).countValues(day.id, ellis).newClients,
+      9,
+    );
   });
 
   testWidgets('changes from another device arrive while the app is open', (
@@ -2191,12 +2200,12 @@ void main() {
 
   test('usernames are suggested from names', () {
     expect(AppUser.suggestUsername('Mary Wanjiku'), 'mary.wanjiku');
-    expect(AppUser.suggestUsername('  Logan '), 'director.logan');
-    expect(AppUser.suggestUsername('Morgan'), 'canisius.yego');
+    expect(AppUser.suggestUsername('  Director/Logan '), 'director.logan');
+    expect(AppUser.suggestUsername('Morgan Example'), 'morgan.example');
     expect(AppUser.suggestUsername('Jo'), 'jo1');
     expect(AppUser.suggestUsername('Ellis', taken: ['ellis']), 'joy2');
     expect(AppUser.suggestUsername('Zoë O’Neil'), 'zoe.oneil');
-    for (final n in ['Mary Wanjiku', 'Logan', 'Jo', 'Zoë O’Neil']) {
+    for (final n in ['Mary Wanjiku', 'Director/Logan', 'Jo', 'Zoë O’Neil']) {
       expect(
         AppUser.usernamePattern.hasMatch(AppUser.suggestUsername(n)),
         true,

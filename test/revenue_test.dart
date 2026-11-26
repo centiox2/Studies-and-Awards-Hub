@@ -126,8 +126,8 @@ void main() {
 
   test('a code read with 0 for O still counts as already added', () {
     final repo = RevenueRepository(db);
-    repo.add(DateTime(2026, 11, 3), 4574000, note: 'M-Pesa · UK3JPO8PVA');
-    expect(repo.existingCodes(['UK3JP08PVA', 'ZZ9ZZ99ZZZ']), {'UK3JP08PVA'});
+    repo.add(DateTime(2026, 11, 3), 1234500, note: 'M-Pesa · EX4AMPO8PA');
+    expect(repo.existingCodes(['EX4AMP08PA', 'ZZ9ZZ99ZZZ']), {'EX4AMP08PA'});
   });
 
   test('currency defaults to KSh and can be changed', () {
@@ -242,9 +242,9 @@ void main() {
     expect(find.byKey(const ValueKey('paste-payment')), findsOneWidget);
 
     const sms =
-        'UK3JPO8PVA Confirmed. on 3/11/26 at 1:38 PM Ksh45,740.00 received '
-        'from DAVID KIMURKONG KANGOGO 254722699840. Account Number Leonorah '
-        'Cherop New Utility balance is Ksh106,520.00';
+        'EX4AMPO8PA Confirmed. on 3/11/26 at 1:38 PM Ksh12,345.00 received '
+        'from ALEX SAMPLE PAYER 254700000000. Account Number Example Student '
+        'Student New Utility balance is Ksh67,890.00';
     Future<void> paste() async {
       await tester.tap(find.byKey(const ValueKey('paste-payment')));
       await tester.pumpAndSettle();
@@ -255,8 +255,8 @@ void main() {
 
     await paste();
     expect(find.text('Payment found'), findsOneWidget);
-    expect(find.text('KSh 45,740'), findsOneWidget);
-    expect(find.textContaining('KSh 106,520'), findsNothing);
+    expect(find.text('KSh 12,345'), findsOneWidget);
+    expect(find.textContaining('KSh 67,890'), findsNothing);
     Finder dialogAdd() => find.descendant(
       of: find.byType(AlertDialog),
       matching: find.widgetWithText(FilledButton, 'Add'),
@@ -266,9 +266,9 @@ void main() {
 
     final day = DateTime(2026, 11, 3);
     final saved = RevenueRepository(db).entriesFor(day);
-    expect(saved.single.amountCents, 4574000);
-    expect(saved.single.note, contains('UK3JPO8PVA'));
-    expect(saved.single.note, isNot(contains('254722699840')));
+    expect(saved.single.amountCents, 1234500);
+    expect(saved.single.note, contains('EX4AMPO8PA'));
+    expect(saved.single.note, isNot(contains('254700000000')));
 
     // The same message again: flagged and not ticked.
     await paste();
@@ -293,12 +293,12 @@ void main() {
     // Two overlapping screenshots show today's payment twice; yesterday's
     // is in there too.
     final text =
-        'UK3JPO8PVA Confirmed. on ${d(now)} at 1:38 AM Ksh45,740.00 received '
-        'from EXAMPLE PAYER 254722699840. New Utility balance is Ksh9.00\n'
-        'UK3JP08PVA Confirmed. on ${d(now)} at 1:38 AM Ksh45,740.00 received '
-        'from EXAMPLE PAYER 254722699840. New Utility balance is Ksh9.00\n'
+        'EX4AMPO8PA Confirmed. on ${d(now)} at 1:38 AM Ksh12,345.00 received '
+        'from EXAMPLE PAYER 254700000000. New Utility balance is Ksh9.00\n'
+        'EX4AMP08PA Confirmed. on ${d(now)} at 1:38 AM Ksh12,345.00 received '
+        'from EXAMPLE PAYER 254700000000. New Utility balance is Ksh9.00\n'
         'TJ2AB34CDE Confirmed. on ${d(y)} at 4:05 PM Ksh1,200.00 received '
-        'from JANE W 254711000111. New Utility balance is Ksh1.00';
+        'from JANE W 254700000003. New Utility balance is Ksh1.00';
     await tester.tap(find.byKey(const ValueKey('paste-payment')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('paste-message')), text);
@@ -318,7 +318,7 @@ void main() {
     final repo = RevenueRepository(db);
     final today = repo.entriesFor(DateTime(now.year, now.month, now.day));
     final yesterday = repo.entriesFor(DateTime(y.year, y.month, y.day));
-    expect(today.single.amountCents, 4574000);
+    expect(today.single.amountCents, 1234500);
     expect(today.single.createdAt.hour, 1);
     expect(today.single.createdAt.minute, 38);
     expect(yesterday.single.amountCents, 120000);
@@ -338,7 +338,7 @@ void main() {
     await tester.enterText(
       find.byKey(const ValueKey('paste-message')),
       'QF71ABC2XY Confirmed. on 14/2/23 at 9:05 AM Ksh3,500.00 received from '
-      'MARY W 254700111222. New Utility balance is Ksh10.00',
+      'MARY W 254700000002. New Utility balance is Ksh10.00',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Read'));
     await tester.pumpAndSettle();
@@ -463,7 +463,7 @@ void main() {
       PhotoText(
         path,
         text:
-            'UK3JPO8PVA Confirmed. on 3/11/26 at 1:38 PM Ksh45,740.00 '
+            'EX4AMPO8PA Confirmed. on 3/11/26 at 1:38 PM Ksh12,345.00 '
             'received from JOHN PAYER 254700000000. New Utility balance is '
             'Ksh1.00',
       ),
@@ -485,21 +485,21 @@ void main() {
     final day = DateTime(2026, 11, 2);
     final a = repo.add(
       day,
-      4574000,
-      note: 'M-Pesa · David Kangogo · Acc: Leonorah · UK3JPO8PVA',
+      1234500,
+      note: 'M-Pesa · David Payer · Acc: Example Student · EX4AMPO8PA',
       purpose: 'Visa fee',
     );
     repo.add(day, 150000, note: 'Cash', purpose: 'Consultation');
     final refund = repo.add(day, -50000, note: 'Refund to David');
     // Totals are net of refunds.
-    expect(repo.day(day).totalCents, 4574000 + 150000 - 50000);
+    expect(repo.day(day).totalCents, 1234500 + 150000 - 50000);
     expect(repo.entry(refund)!.isRefund, isTrue);
     expect(repo.entry(a)!.purpose, 'Visa fee');
 
     repo.update(
       a,
       amountCents: 4500000,
-      note: 'M-Pesa · David Kangogo · Acc: Leonorah · UK3JPO8PVA',
+      note: 'M-Pesa · David Payer · Acc: Example Student · EX4AMPO8PA',
       at: DateTime(2026, 11, 3, 9),
     );
     final gone = repo.entry(refund)!;
@@ -513,15 +513,15 @@ void main() {
       'added',
     ]);
     final edit = history[2];
-    expect(edit.oldAmountCents, 4574000);
+    expect(edit.oldAmountCents, 1234500);
     expect(edit.amountCents, 4500000);
     expect(edit.oldDate, day);
     expect(edit.date, DateTime(2026, 11, 3));
 
     // Search: names, codes (O or 0), amounts and purposes, on any date.
-    expect(repo.search('david kangogo').single.id, a); // every word
+    expect(repo.search('david payer').single.id, a); // every word
     expect(repo.search('david').length, 2); // the payment and the refund
-    expect(repo.search('UK3JP08PVA').single.id, a);
+    expect(repo.search('EX4AMP08PA').single.id, a);
     expect(repo.search('45,000').single.id, a);
     expect(repo.search('consultation').single.note, 'Cash');
     expect(repo.search('nobody'), isEmpty);
@@ -537,10 +537,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('paste-message')),
-      'UK3JPO8PVA Confirmed. on ${d(now)} at 1:38 AM Ksh1,000.00 received '
+      'EX4AMPO8PA Confirmed. on ${d(now)} at 1:38 AM Ksh1,000.00 received '
       'from A B 254700000000. New Utility balance is Ksh1.00\n'
       'TJ2AB34CDE Confirmed. on ${d(now)} at 2:05 AM Ksh2,000.00 received '
-      'from C D 254711000111. New Utility balance is Ksh1.00',
+      'from C D 254700000003. New Utility balance is Ksh1.00',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Read'));
     await tester.pumpAndSettle();
@@ -567,10 +567,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('paste-message')),
-      'UK3JPO8PVA Confirmed. on $d at 1:38 AM Ksh1,000.00 received '
+      'EX4AMPO8PA Confirmed. on $d at 1:38 AM Ksh1,000.00 received '
       'from A B 254700000000.\n'
       'TJ2AB34CDE Confirmed. on $d at 2:05 AM Ksh2,000.00 received '
-      'from C D 254711000111.',
+      'from C D 254700000003.',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Read'));
     await tester.pumpAndSettle();

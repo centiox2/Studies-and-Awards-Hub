@@ -33,7 +33,7 @@ void main() {
       expect(staff.first.name, 'Alex');
       expect(
         staff.map((s) => s.name),
-        containsAll(['Ellis', 'Logan', 'Nico']),
+        containsAll(['Ellis', 'Director/Logan', 'Nico']),
       );
     });
 
@@ -167,9 +167,7 @@ void main() {
     test('staff week totals include deactivated staff history', () {
       final week = weekRepo.createWeekFor(DateTime(2026, 9, 28));
       final days = weekRepo.getDays(week.id);
-      final alex = staffRepo.getAll().firstWhere(
-        (s) => s.name == 'Alex',
-      );
+      final alex = staffRepo.getAll().firstWhere((s) => s.name == 'Alex');
 
       countRepo.saveCount(
         dayId: days[0].id,
@@ -284,7 +282,8 @@ void main() {
       newClients: 0,
       existingClients: 5,
     );
-    TimeOffRepository(db).setDay(dayId: days[2].id, staffId: ellis.id, off: true);
+    TimeOffRepository(db)
+        .setDay(dayId: days[2].id, staffId: ellis.id, off: true);
 
     final batched = countRepo.weekDaysWithCounts(week.id);
     final single = [for (final d in days) countRepo.getDayWithCounts(d.id)];

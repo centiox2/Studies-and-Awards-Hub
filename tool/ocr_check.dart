@@ -26,15 +26,14 @@ Future<void> main(List<String> args) async {
       stdout.writeln('error: ${r.error}');
       continue;
     }
-    stdout.writeln(r.text);
     final found = parsePayments(r.text ?? '');
-    stdout.writeln('payments: ${found.map((p) => p.amountCents)}');
-    ok &= found.length == 1 && found.single.amountCents == 4574000;
+    stdout.writeln('payments found: ${found.length}');
+    ok &= found.length == 1 && found.single.amountCents == 1234500;
   }
   ok &= results[0].error == null && results[2].error == null;
   ok &= results[1].error != null;
   if (!ok) {
-    stderr.writeln('Expected Ksh45,740.00 in photos 1 and 3, an error for 2');
+    stderr.writeln('Expected Ksh12,345.00 in photos 1 and 3, an error for 2');
     exit(1);
   }
   stdout.writeln('OK');
