@@ -212,6 +212,18 @@ void main() {
         final db = openInMemoryDatabase();
         addTearDown(db.close);
         if (name != 'overview-empty') _seed(db);
+        if (name == 'report-staff-dialog') {
+          // The same name appears in the staff card and Latest Updates.
+          db.raw.execute(
+            'UPDATE client_counts SET updated_at = CASE WHEN staff_id = '
+            '(SELECT id FROM staff WHERE name = ?) THEN ? ELSE ? END;',
+            [
+              'Ellis',
+              today.toIso8601String(),
+              today.subtract(const Duration(days: 1)).toIso8601String(),
+            ],
+          );
+        }
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1;
         tester.platformDispatcher.textScaleFactorTestValue = scale;
@@ -256,9 +268,17 @@ void main() {
               ? find.byKey(ValueKey('settings-cat-${label.toLowerCase()}'))
               : tab == AppTab.todo
               ? find.byKey(const ValueKey('todo-history'))
+              : name == 'report-staff-dialog'
+              ? find.descendant(
+                  of: find.byKey(const ValueKey('quick-client-activity')),
+                  matching: find.text(label),
+                )
               : find.text(label).last;
           await tester.ensureVisible(target);
           await tester.pumpAndSettle();
+          if (name == 'report-staff-dialog') {
+            expect(target.hitTestable(), findsOneWidget);
+          }
           await tester.tap(target);
           await tester.pumpAndSettle();
         }
@@ -305,10 +325,15 @@ void main() {
           );
         }
         if (name == 'report-staff-dialog') {
-          final label = tester.renderObject<RenderParagraph>(
-            find.text('Average per day worked'),
+          final caption = find.descendant(
+            of: find.byType(Dialog),
+            matching: find.text('Average per day worked'),
           );
-          expect(label.didExceedMaxLines, isFalse);
+          expect(caption, findsOneWidget);
+          expect(
+            tester.renderObject<RenderParagraph>(caption).didExceedMaxLines,
+            isFalse,
+          );
         }
         if (name == 'new-week-dialog') {
           expect(find.byType(AlertDialog), findsOneWidget);
