@@ -14,25 +14,25 @@ import 'motion.dart';
 double clarityHPad(BuildContext context) =>
     MediaQuery.sizeOf(context).width < 640 ? 16.0 : 32.0;
 
-/// Page padding: 28 top, 32 sides (16 on phones).
+/// Page padding: 24 top, 32 sides (16 on phones).
 EdgeInsets clarityPagePadding(double width) => width < 640
-    ? const EdgeInsets.fromLTRB(16, 20, 16, 32)
-    : const EdgeInsets.fromLTRB(32, 28, 32, 40);
+    ? const EdgeInsets.fromLTRB(16, 16, 16, 32)
+    : const EdgeInsets.fromLTRB(32, 24, 32, 40);
 
-/// A page's header: the date (or other eyebrow), the page title, and a
+/// A page's header: the title, optional context and a
 /// toolbar with at most one primary button. Wraps on narrow screens.
 class PageHeader extends StatelessWidget {
   const PageHeader({
     super.key,
     required this.title,
-    this.eyebrow,
+    this.subtitle,
     this.actions = const [],
   });
 
   final String title;
 
-  /// Small muted line above the title (usually today's date).
-  final String? eyebrow;
+  /// Muted metadata under the title, usually today's date.
+  final String? subtitle;
   final List<Widget> actions;
 
   @override
@@ -40,26 +40,19 @@ class PageHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final c = context.clarity;
     final phone = MediaQuery.sizeOf(context).width < 640;
-    final titleText = Text(
-      title,
-      style: theme.textTheme.headlineMedium?.copyWith(
-        fontSize: phone ? 24 : 28,
+    final titleText = Semantics(
+      header: true,
+      child: Text(
+        title,
+        style: theme.textTheme.headlineMedium?.copyWith(
+          fontSize: phone ? 24 : 28,
+        ),
       ),
     );
     final heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (eyebrow != null)
-          Text(
-            eyebrow!,
-            key: const ValueKey('page-eyebrow'),
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: c.textMuted,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        if (eyebrow != null) const SizedBox(height: 6),
         if (title.contains(' '))
           titleText
         else
@@ -68,6 +61,13 @@ class PageHeader extends StatelessWidget {
             alignment: AlignmentDirectional.centerStart,
             child: titleText,
           ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            style: theme.textTheme.bodySmall?.copyWith(color: c.textMuted),
+          ),
+        ],
       ],
     );
     if (actions.isEmpty) return heading;
@@ -81,11 +81,12 @@ class PageHeader extends StatelessWidget {
         );
         // Use the space available beside the sidebar, not the window width.
         // A deliberate second row keeps actions aligned on tablets and phones.
-        if (constraints.maxWidth < 1000) {
+        if (constraints.maxWidth < 680 ||
+            MediaQuery.textScalerOf(context).scale(14) > 18) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
-            children: [heading, const SizedBox(height: 16), toolbar],
+            children: [heading, const SizedBox(height: 12), toolbar],
           );
         }
         return Row(
@@ -104,7 +105,7 @@ class PageHeader extends StatelessWidget {
   }
 }
 
-/// A plain Clarity card: surface, 1px border, 12px radius.
+/// A bordered Clarity surface, optionally with a keyboard-accessible action.
 class ClarityCard extends StatelessWidget {
   const ClarityCard({
     super.key,
@@ -112,23 +113,41 @@ class ClarityCard extends StatelessWidget {
     this.padding = const EdgeInsets.fromLTRB(20, 18, 20, 18),
     this.color,
     this.borderColor,
+    this.onTap,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color? color;
   final Color? borderColor;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.clarity;
+    final radius = BorderRadius.circular(Dt.rMd);
+    if (onTap != null) {
+      return Material(
+        color: color ?? c.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(color: borderColor ?? c.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: Padding(padding: padding, child: child),
+        ),
+      );
+    }
     return Container(
       clipBehavior: Clip.antiAlias,
       padding: padding,
       decoration: BoxDecoration(
         color: color ?? c.surface,
         border: Border.all(color: borderColor ?? c.border),
-        borderRadius: BorderRadius.circular(Dt.rMd),
+        borderRadius: radius,
       ),
       child: child,
     );
@@ -146,6 +165,7 @@ class KpiCard extends StatelessWidget {
     required this.value,
     this.unit,
     this.caption,
+    this.markerColor,
     this.tone = DeltaTone.neutral,
     this.onTap,
     this.valueColor,
@@ -159,6 +179,9 @@ class KpiCard extends StatelessWidget {
 
   /// The line below ("↓ 6 (33%) vs last week", "November 2026").
   final String? caption;
+
+  /// Identifies the matching series in the chart.
+  final Color? markerColor;
   final DeltaTone tone;
   final VoidCallback? onTap;
   final Color? valueColor;
@@ -170,21 +193,34 @@ class KpiCard extends StatelessWidget {
     // Phones: tighter cards and a smaller number, so two fit side by side
     // without the words wrapping into tall boxes.
     final phone = MediaQuery.sizeOf(context).width < 600;
-    final card = ClarityCard(
+    return ClarityCard(
+      onTap: onTap,
       padding: phone
           ? const EdgeInsets.fromLTRB(14, 12, 14, 12)
-          : const EdgeInsets.fromLTRB(20, 18, 20, 18),
+          : const EdgeInsets.fromLTRB(18, 14, 18, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            maxLines: phone ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelMedium?.copyWith(color: c.textMuted),
+          Row(
+            children: [
+              if (markerColor case final color?) ...[
+                MeaningDot(color),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: phone ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: c.textMuted,
+                  ),
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: phone ? 6 : 10),
+          const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -222,7 +258,7 @@ class KpiCard extends StatelessWidget {
             ],
           ),
           if (caption != null) ...[
-            SizedBox(height: phone ? 6 : 10),
+            const SizedBox(height: 6),
             Text(
               caption!,
               maxLines: 3,
@@ -238,11 +274,6 @@ class KpiCard extends StatelessWidget {
           ],
         ],
       ),
-    );
-    if (onTap == null) return card;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(onTap: onTap, child: card),
     );
   }
 }
@@ -938,9 +969,11 @@ class UnderlineTabs<T> extends StatelessWidget {
           child: InkWell(
             key: ValueKey('tab-$label'),
             onTap: () => onChanged(value),
-            hoverColor: Colors.transparent,
+            hoverColor: c.text.withValues(alpha: 0.04),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              constraints: const BoxConstraints(minHeight: 44),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
@@ -951,11 +984,11 @@ class UnderlineTabs<T> extends StatelessWidget {
               ),
               child: Text(
                 label,
-                style: theme.textTheme.bodyLarge?.copyWith(
+                style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: value == selected
                       ? FontWeight.w600
                       : FontWeight.w500,
-                  color: value == selected ? c.accent : c.textMuted,
+                  color: value == selected ? c.text : c.textMuted,
                 ),
               ),
             ),
@@ -963,10 +996,10 @@ class UnderlineTabs<T> extends StatelessWidget {
         ),
     ];
     final row = wrapTabs
-        ? Wrap(spacing: 20, children: buttons)
+        ? Wrap(spacing: 8, children: buttons)
         : SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Row(spacing: 20, children: buttons),
+            child: Row(spacing: 8, children: buttons),
           );
     return DecoratedBox(
       decoration: BoxDecoration(

@@ -39,8 +39,8 @@ void main() {
   test('the Clarity tokens, light and dark', () {
     final light = buildAppTheme(Brightness.light);
     final dark = buildAppTheme(Brightness.dark);
-    expect(light.scaffoldBackgroundColor, const Color(0xFFF5F6F8));
-    expect(dark.scaffoldBackgroundColor, const Color(0xFF0E1116));
+    expect(light.scaffoldBackgroundColor, const Color(0xFFF8F9FB));
+    expect(dark.scaffoldBackgroundColor, const Color(0xFF13161D));
     expect(Clarity.of(light).seriesNew, const Color(0xFFE8833A));
     expect(Clarity.of(light).seriesExisting, const Color(0xFF3B5BDB));
     // The brand: navy accent on light, gold on dark.
@@ -49,6 +49,21 @@ void main() {
     // Text styles carry Inter (not Roboto falling back to the system font).
     expect(light.textTheme.bodyMedium!.fontFamily, 'Inter');
     expect(light.textTheme.headlineMedium!.fontSize, 28);
+
+    for (final theme in [light, dark]) {
+      final colors = Clarity.of(theme);
+      expect(colors.chrome, isNot(colors.bg));
+      for (final surface in [colors.chrome, colors.bg, colors.surface]) {
+        final luminances = [
+          surface.computeLuminance(),
+          colors.textMuted.computeLuminance(),
+        ]..sort();
+        expect(
+          (luminances.last + 0.05) / (luminances.first + 0.05),
+          greaterThanOrEqualTo(4.5),
+        );
+      }
+    }
   });
 
   test('deltas and tidy chart tops', () {

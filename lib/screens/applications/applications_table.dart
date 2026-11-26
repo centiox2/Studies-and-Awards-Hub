@@ -43,8 +43,6 @@ class _ApplicationsTableState extends State<ApplicationsTable> {
   int? _sortColumn;
   bool _ascending = true;
 
-  static const _rowHeight = 50.0;
-
   @override
   void dispose() {
     _search.dispose();
@@ -171,7 +169,9 @@ class _ApplicationsTableState extends State<ApplicationsTable> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final colors = context.clarity;
     final muted = Dt.textMuted(theme);
+    final scaler = MediaQuery.textScalerOf(context);
     final columns = _columns();
     const numberWidth = 52.0;
     final width = numberWidth + columns.fold<double>(0, (s, c) => s + c.width);
@@ -237,7 +237,7 @@ class _ApplicationsTableState extends State<ApplicationsTable> {
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search, size: 18),
-              hintText: 'Search the table',
+              hintText: 'Search',
               isDense: true,
               suffixIcon: _search.text.isEmpty
                   ? null
@@ -294,49 +294,59 @@ class _ApplicationsTableState extends State<ApplicationsTable> {
       ),
     );
 
-    final header = Container(
-      height: 46,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          cellBox(
-            numberWidth,
-            Text(
-              '#',
-              style: theme.textTheme.labelSmall?.copyWith(color: muted),
-            ),
-          ),
-          for (final (i, c) in columns.indexed)
-            InkWell(
-              key: ValueKey('table-sort-${c.label}'),
-              onTap: c.sortKey == null ? null : () => _sortBy(i),
-              child: cellBox(
-                c.width,
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        c.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (_sortColumn == i)
-                      Icon(
-                        _ascending ? Icons.arrow_upward : Icons.arrow_downward,
-                        size: 13,
-                      ),
-                  ],
+    final header = Material(
+      color: colors.neutralBg,
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: colors.border)),
+        ),
+        child: SizedBox(
+          height: scaler.scale(24) + 20,
+          child: Row(
+            children: [
+              cellBox(
+                numberWidth,
+                Text(
+                  '#',
+                  style: theme.textTheme.labelSmall?.copyWith(color: muted),
                 ),
               ),
-            ),
-        ],
+              for (final (i, c) in columns.indexed)
+                InkWell(
+                  key: ValueKey('table-sort-${c.label}'),
+                  onTap: c.sortKey == null ? null : () => _sortBy(i),
+                  child: Ink(
+                    color: _sortColumn == i ? colors.accentSoft : null,
+                    child: cellBox(
+                      c.width,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              c.label,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (_sortColumn == i)
+                            Icon(
+                              _ascending
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              size: 13,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
 
@@ -352,22 +362,18 @@ class _ApplicationsTableState extends State<ApplicationsTable> {
             controller: _vertical,
             child: ListView.builder(
               controller: _vertical,
-              itemExtent: _rowHeight,
+              itemExtent: scaler.scale(28) + 18,
               itemCount: rows.length,
               itemBuilder: (context, r) {
                 final a = rows[r];
                 return Material(
-                  color: r.isEven
-                      ? scheme.surfaceContainerLow
-                      : scheme.surfaceContainerLowest,
+                  color: colors.surface,
                   child: InkWell(
                     onTap: () => widget.onOpen(a),
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(
-                            color: scheme.outline.withValues(alpha: 0.6),
-                          ),
+                          bottom: BorderSide(color: colors.borderSubtle),
                         ),
                       ),
                       child: Row(
@@ -400,6 +406,7 @@ class _ApplicationsTableState extends State<ApplicationsTable> {
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
+              color: colors.surface,
               border: Border.all(color: scheme.outline),
               borderRadius: BorderRadius.circular(Dt.rMd),
             ),

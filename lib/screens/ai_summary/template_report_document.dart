@@ -609,24 +609,32 @@ class _MetricTiles extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
       final ideal = MediaQuery.textScalerOf(context).scale(148);
-      final cols = ((box.maxWidth + 10) / (ideal + 10)).floor().clamp(1, 3);
-      final width = (box.maxWidth - (cols - 1) * 10) / cols;
+      const gap = Dt.s16;
+      final capacity = ((box.maxWidth + gap) / (ideal + gap)).floor().clamp(
+        1,
+        items.length.clamp(1, 4),
+      );
+      final cols = items.length == 4 && capacity == 3 ? 2 : capacity;
+      final width = (box.maxWidth - (cols - 1) * gap) / cols;
       final theme = Theme.of(context);
       final colors = context.clarity;
       return Wrap(
-        spacing: 10,
-        runSpacing: 10,
+        spacing: gap,
+        runSpacing: gap,
         children: [
           for (final (label, value) in items)
             SizedBox(
               width: width,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
+                  border: Border(
+                    top: BorderSide(
+                      color: warning ? colors.noticeBorder : colors.border,
+                    ),
+                  ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.only(top: Dt.s8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

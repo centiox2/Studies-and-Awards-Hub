@@ -24,6 +24,7 @@ class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.clarity;
     final allowed = ref.watch(availableAppTabsProvider);
     final tracker = allowed.contains(AppTab.week);
     final data = tracker ? ref.watch(currentWeekProvider) : null;
@@ -36,7 +37,13 @@ class DashboardScreen extends ConsumerWidget {
         : 'week of ${DateFormat('d MMM').format(data.week.startDate)}';
     final width = MediaQuery.sizeOf(context).width;
     void open(AppTab tab) => ref.read(appActionsProvider).selectTab(tab);
-    KpiCard metric(String label, int? value, int? before, {String? average}) {
+    KpiCard metric(
+      String label,
+      int? value,
+      int? before, {
+      String? average,
+      Color? markerColor,
+    }) {
       final (caption, tone) = value == null || before == null
           ? (null, DeltaTone.neutral)
           : deltaVsLast(value, before);
@@ -45,6 +52,7 @@ class DashboardScreen extends ConsumerWidget {
         value: value == null ? '—' : '$value',
         unit: average ?? unit,
         caption: caption,
+        markerColor: markerColor,
         tone: tone,
         onTap: () => open(AppTab.week),
       );
@@ -95,7 +103,7 @@ class DashboardScreen extends ConsumerWidget {
                     WeekRangeButton(canStart: ref.watch(canEditProvider)),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Dt.s20),
               KpiGrid(
                 orderKey: 'overview',
                 minWidth: width < 640 ? 150 : 190,
@@ -105,11 +113,13 @@ class DashboardScreen extends ConsumerWidget {
                       'New clients',
                       totals?.newClients,
                       previous?.newClients,
+                      markerColor: colors.seriesNew,
                     ),
                     metric(
                       'Existing clients',
                       totals?.existingClients,
                       previous?.existingClients,
+                      markerColor: colors.seriesExisting,
                     ),
                     metric(
                       'Total clients',

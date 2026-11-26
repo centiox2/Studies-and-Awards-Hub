@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Design system for S&A Hub: "Clarity".
 ///
-/// Calm, light-first and data-focused: white cards on a soft grey page, the
+/// Calm and data-focused: quiet navigation beside a neutral workspace, the
 /// Studies and Awards navy as the one accent (the logo's gold in dark mode),
 /// an orange/blue pair for data and
 /// plain status colours. The rules every screen follows:
@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 abstract final class Dt {
   // ---- Radius -------------------------------------------------------------
   static const double rSm = 8; // buttons, inputs, menu items
-  static const double rMd = 12; // cards
+  static const double rMd = 10; // cards
   static const double rLg = 12; // dialogs
   static const double rTag = 4; // small tags, keyboard hints
   static const double rPill = 999; // pills and chips
@@ -148,6 +148,7 @@ abstract final class Dt {
 class Clarity extends ThemeExtension<Clarity> {
   const Clarity({
     required this.bg,
+    required this.chrome,
     required this.surface,
     required this.surfaceRaised,
     required this.border,
@@ -182,6 +183,7 @@ class Clarity extends ThemeExtension<Clarity> {
   });
 
   final Color bg;
+  final Color chrome;
   final Color surface;
   final Color surfaceRaised;
   final Color border;
@@ -219,19 +221,20 @@ class Clarity extends ThemeExtension<Clarity> {
   final Color brandGold;
 
   static const light = Clarity(
-    bg: Color(0xFFF5F6F8),
+    bg: Color(0xFFF8F9FB),
+    chrome: Color(0xFFF0F2F6),
     surface: Color(0xFFFFFFFF),
     surfaceRaised: Color(0xFFFFFFFF),
-    border: Color(0xFFE4E7EC),
-    borderSubtle: Color(0xFFEEF0F3),
-    borderStrong: Color(0xFFD0D5DD),
-    text: Color(0xFF0F172A),
-    textSecondary: Color(0xFF344054),
-    textMuted: Color(0xFF5B6474),
+    border: Color(0xFFDFE3EA),
+    borderSubtle: Color(0xFFEBEDF2),
+    borderStrong: Color(0xFFCCD2DE),
+    text: Color(0xFF151D2D),
+    textSecondary: Color(0xFF3D475A),
+    textMuted: Color(0xFF596579),
     // Studies and Awards navy (the logo's), for the accent.
     accent: Color(0xFF001A45),
     accentHover: Color(0xFF0B2E6B),
-    accentSoft: Color(0xFFEAEFF7),
+    accentSoft: Color(0xFFE3EAF5),
     onAccent: Color(0xFFFFFFFF),
     seriesNew: Color(0xFFE8833A),
     seriesExisting: Color(0xFF3B5BDB),
@@ -247,7 +250,7 @@ class Clarity extends ThemeExtension<Clarity> {
     noticeBorder: Color(0xFFF3D9B1),
     noticeFg: Color(0xFF7A4A06),
     noticeBtnBorder: Color(0xFFE4C48E),
-    neutralBg: Color(0xFFF2F4F7),
+    neutralBg: Color(0xFFEDF0F5),
     neutralFg: Color(0xFF475467),
     negativeFg: Color(0xFFB42318),
     focus: Color(0x40001A45),
@@ -255,26 +258,27 @@ class Clarity extends ThemeExtension<Clarity> {
   );
 
   static const dark = Clarity(
-    bg: Color(0xFF0E1116),
-    surface: Color(0xFF161B22),
-    surfaceRaised: Color(0xFF1C2230),
-    border: Color(0xFF2A3140),
-    borderSubtle: Color(0xFF222936),
-    borderStrong: Color(0xFF3A4354),
-    text: Color(0xFFE6EAF0),
-    textSecondary: Color(0xFFC3CAD5),
-    textMuted: Color(0xFF9AA4B2),
+    bg: Color(0xFF13161D),
+    chrome: Color(0xFF101219),
+    surface: Color(0xFF191D26),
+    surfaceRaised: Color(0xFF202532),
+    border: Color(0xFF2D3442),
+    borderSubtle: Color(0xFF272D3A),
+    borderStrong: Color(0xFF414A5D),
+    text: Color(0xFFEDF0F6),
+    textSecondary: Color(0xFFC1C8D6),
+    textMuted: Color(0xFFA1ACBF),
     // Studies and Awards gold on dark (navy would vanish), navy text on it.
     accent: Color(0xFFFBBA00),
     accentHover: Color(0xFFFFD24D),
-    accentSoft: Color(0x24FBBA00),
+    accentSoft: Color(0x1FFBBA00),
     onAccent: Color(0xFF001A45),
     seriesNew: Color(0xFFF0A060),
     seriesExisting: Color(0xFF6F8BFF),
     seriesThird: Color(0xFF3CC8B4),
     seriesFourth: Color(0xFFA78BFA),
-    track: Color(0xFF232A37),
-    gridline: Color(0xFF1E2430),
+    track: Color(0xFF2A3140),
+    gridline: Color(0xFF272D3A),
     positiveBg: Color(0xFF12301F),
     positiveFg: Color(0xFF7EE2A8),
     warningBg: Color(0xFF3A2A10),
@@ -283,7 +287,7 @@ class Clarity extends ThemeExtension<Clarity> {
     noticeBorder: Color(0xFF4A3A1C),
     noticeFg: Color(0xFFF5C77A),
     noticeBtnBorder: Color(0xFF5C4824),
-    neutralBg: Color(0xFF222A36),
+    neutralBg: Color(0xFF242A37),
     neutralFg: Color(0xFFB8C1CE),
     negativeFg: Color(0xFFFF8A80),
     focus: Color(0x59FBBA00),
@@ -305,6 +309,7 @@ class Clarity extends ThemeExtension<Clarity> {
     Color c(Color a, Color b) => Color.lerp(a, b, t)!;
     return Clarity(
       bg: c(bg, other.bg),
+      chrome: c(chrome, other.chrome),
       surface: c(surface, other.surface),
       surfaceRaised: c(surfaceRaised, other.surfaceRaised),
       border: c(border, other.border),
@@ -444,9 +449,9 @@ ThemeData buildAppTheme(Brightness brightness) {
     // KPI number.
     displaySmall: baseText.displaySmall?.copyWith(
       fontSize: 32,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
       height: 1.1,
-      letterSpacing: -0.64,
+      letterSpacing: -0.96,
     ),
     headlineLarge: baseText.headlineLarge?.copyWith(
       fontSize: 32,
@@ -459,7 +464,7 @@ ThemeData buildAppTheme(Brightness brightness) {
       fontSize: 28,
       fontWeight: FontWeight.w700,
       height: 1.2,
-      letterSpacing: -0.56,
+      letterSpacing: -0.8,
     ),
     headlineSmall: baseText.headlineSmall?.copyWith(
       fontSize: 22,
@@ -530,6 +535,13 @@ ThemeData buildAppTheme(Brightness brightness) {
   final buttonShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(Dt.rSm),
   );
+  final controlOverlay = WidgetStateProperty.resolveWith<Color?>((states) {
+    if (states.contains(WidgetState.focused)) return c.focus;
+    if (states.contains(WidgetState.pressed)) {
+      return c.text.withValues(alpha: 0.08);
+    }
+    return null;
+  });
 
   return ThemeData(
     useMaterial3: true,
@@ -639,7 +651,16 @@ ThemeData buildAppTheme(Brightness brightness) {
         foregroundColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.disabled) ? c.textMuted : c.onAccent,
         ),
-        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        overlayColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.focused)
+              ? c.onAccent.withValues(alpha: 0.18)
+              : null,
+        ),
+        side: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.focused)
+              ? BorderSide(color: c.onAccent, width: 2)
+              : BorderSide.none,
+        ),
         elevation: const WidgetStatePropertyAll(0),
         minimumSize: const WidgetStatePropertyAll(Size(0, 40)),
         padding: const WidgetStatePropertyAll(
@@ -659,7 +680,7 @@ ThemeData buildAppTheme(Brightness brightness) {
         foregroundColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.disabled) ? c.textMuted : c.text,
         ),
-        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        overlayColor: controlOverlay,
         elevation: const WidgetStatePropertyAll(0),
         minimumSize: const WidgetStatePropertyAll(Size(0, 40)),
         padding: const WidgetStatePropertyAll(
@@ -667,7 +688,11 @@ ThemeData buildAppTheme(Brightness brightness) {
         ),
         side: WidgetStateProperty.resolveWith(
           (s) => BorderSide(
-            color: s.contains(WidgetState.disabled) ? c.border : c.borderStrong,
+            color: s.contains(WidgetState.focused)
+                ? c.accent
+                : s.contains(WidgetState.disabled)
+                ? c.border
+                : c.borderStrong,
           ),
         ),
         shape: WidgetStatePropertyAll(buttonShape),
@@ -715,7 +740,7 @@ ThemeData buildAppTheme(Brightness brightness) {
         foregroundColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected) ? c.text : c.textSecondary,
         ),
-        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        overlayColor: controlOverlay,
         textStyle: WidgetStateProperty.resolveWith(
           (s) => TextStyle(
             fontFamily: Dt.font,
@@ -779,7 +804,7 @@ ThemeData buildAppTheme(Brightness brightness) {
     ),
 
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: c.surface,
+      backgroundColor: c.chrome,
       indicatorColor: c.accentSoft,
       indicatorShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Dt.rSm),

@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart'
 /// pubspec.yaml (a test checks), so Settings, the "What's new" window and
 /// the installers all say the same.
 abstract final class AppInfo {
-  static const version = '1.9.19';
+  static const version = '1.9.20';
 
   /// Show "What's new" after an update (the real app only; tests leave it
   /// off so it never covers the screen under test).
@@ -39,6 +39,12 @@ abstract final class AppInfo {
 
   /// Newest first.
   static const releases = <Release>[
+    Release('1.9.20', 'November 2026', [
+      'Navigation, headers and tabs share a clearer look in light and dark mode.',
+      'Overview metrics use the same colours as their charts and support keyboard activation.',
+      'AI report figures use a simpler layout that fits tablets and large text.',
+      'The applications table uses quieter row separators and more room at larger text sizes.',
+    ]),
     Release('1.9.19', 'November 2026', [
       'Sync respects records cleared online after a device has joined.',
       'Overview checks for new AI reports and the reader keeps its open report if a refresh fails.',

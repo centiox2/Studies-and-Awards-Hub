@@ -436,18 +436,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     AppTab.aiSummary => const AiSummaryScreen(),
   };
 
-  /// Every page starts with its Clarity header (date, title, sync). The
+  /// Every page starts with its Clarity header (title, date, sync). The
   /// Overview draws its own, with its toolbar.
   Widget _withHeader(AppTab tab) {
     final page = _page(tab);
     if (tab == AppTab.home || tab == AppTab.aiSummary) return page;
-    final h = clarityHPad(context);
-    final phone = MediaQuery.sizeOf(context).width < 640;
+    final padding = clarityPagePadding(MediaQuery.sizeOf(context).width);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(h, phone ? 20 : 28, h, 4),
+          padding: padding.copyWith(bottom: Dt.s8),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: Dt.contentMaxWidth),
@@ -640,46 +639,54 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
         bottomNavigationBar: allowed.length < 2
             ? null
-            : NavigationBar(
-                // A page under "More" lights up the More button.
-                selectedIndex: barIndex >= 0 ? barIndex : barTabs.length,
-                onDestinationSelected: (index) {
-                  if (index < barTabs.length) {
-                    ref.read(navTabProvider.notifier).set(barTabs[index]);
-                  } else {
-                    _showMore(moreTabs, tab);
-                  }
-                },
-                destinations: [
-                  for (final item in barTabs)
-                    NavigationDestination(
-                      icon: item == AppTab.todo
-                          ? TodoNewBadge(child: Icon(item.icon))
-                          : _reportBadge(
-                              item == AppTab.dailyReports,
-                              reportCount,
-                              reportDue,
-                              Icon(item.icon),
-                            ),
-                      selectedIcon: Icon(item.icon),
-                      label: item.shortLabel,
-                      tooltip: item.label,
-                    ),
-                  if (useMore)
-                    NavigationDestination(
-                      icon: _reportBadge(
-                        moreTabs.contains(AppTab.dailyReports),
-                        reportCount,
-                        reportDue,
-                        moreTabs.contains(AppTab.todo)
-                            ? const TodoNewBadge(child: Icon(Icons.menu))
-                            : const Icon(Icons.menu),
+            : DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: context.clarity.border),
+                  ),
+                ),
+                child: NavigationBar(
+                  // A page under "More" lights up the More button.
+                  selectedIndex: barIndex >= 0 ? barIndex : barTabs.length,
+                  onDestinationSelected: (index) {
+                    if (index < barTabs.length) {
+                      ref.read(navTabProvider.notifier).set(barTabs[index]);
+                    } else {
+                      _showMore(moreTabs, tab);
+                    }
+                  },
+                  destinations: [
+                    for (final item in barTabs)
+                      NavigationDestination(
+                        icon: item == AppTab.todo
+                            ? TodoNewBadge(child: Icon(item.icon))
+                            : _reportBadge(
+                                item == AppTab.dailyReports,
+                                reportCount,
+                                reportDue,
+                                Icon(item.icon),
+                              ),
+                        selectedIcon: Icon(item.icon),
+                        label: item.shortLabel,
+                        tooltip: item.label,
                       ),
-                      selectedIcon: const Icon(Icons.menu),
-                      label: 'More',
-                      tooltip: 'More pages',
-                    ),
-                ],
+                    if (useMore)
+                      NavigationDestination(
+                        icon: _reportBadge(
+                          moreTabs.contains(AppTab.dailyReports),
+                          reportCount,
+                          reportDue,
+                          moreTabs.contains(AppTab.todo)
+                              ? const TodoNewBadge(child: Icon(Icons.menu))
+                              : const Icon(Icons.menu),
+                        ),
+                        selectedIcon: const Icon(Icons.menu),
+                        label: 'More',
+                        tooltip: 'More pages',
+                      ),
+                  ],
+                ),
               ),
       );
     }
@@ -703,7 +710,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             top: 0,
             bottom: 0,
             width: sideWidth,
-            child: ColoredBox(color: context.clarity.surface),
+            child: ColoredBox(color: context.clarity.chrome),
           ),
           Positioned(
             left: 0,
@@ -764,7 +771,7 @@ class _AppSidebar extends ConsumerWidget {
       curve: Motion.curve,
       width: collapsed ? stripWidth : fullWidth,
       decoration: BoxDecoration(
-        color: c.surface,
+        color: c.chrome,
         border: Border(right: BorderSide(color: c.border)),
       ),
       clipBehavior: Clip.hardEdge,
@@ -808,7 +815,7 @@ class _AppSidebar extends ConsumerWidget {
     final icon = Icon(
       item.icon,
       size: 18,
-      color: active ? c.accent : c.textSecondary,
+      color: active ? c.accent : c.textMuted,
     );
     final content = strip
         ? Stack(
@@ -830,9 +837,9 @@ class _AppSidebar extends ConsumerWidget {
                     item.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                      color: active ? c.accent : c.textSecondary,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                      color: active ? c.text : c.textSecondary,
                     ),
                   ),
                 ),
@@ -850,13 +857,41 @@ class _AppSidebar extends ConsumerWidget {
         child: InkWell(
           key: strip ? ValueKey('strip-${item.name}') : null,
           borderRadius: BorderRadius.circular(Dt.rSm),
-          hoverColor: c.neutralBg,
+          hoverColor: c.text.withValues(alpha: 0.05),
           onTap: () => onSelect(item),
           child: Semantics(
             selected: active,
             button: true,
             label: strip ? item.label : null,
-            child: SizedBox(height: 40, child: content),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: strip
+                    ? 40
+                    : MediaQuery.textScalerOf(context).scale(13) + 25,
+              ),
+              child: Stack(
+                alignment: AlignmentDirectional.center,
+                fit: StackFit.passthrough,
+                children: [
+                  content,
+                  if (active)
+                    PositionedDirectional(
+                      start: 0,
+                      top: 10,
+                      bottom: 10,
+                      child: SizedBox(
+                        width: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: c.accent,
+                            borderRadius: BorderRadius.circular(Dt.rTag),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -896,7 +931,7 @@ class _AppSidebar extends ConsumerWidget {
     final backupDue = ref.watch(backupDueProvider);
     final lastBackup = ref.watch(lastBackupProvider);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -908,14 +943,14 @@ class _AppSidebar extends ConsumerWidget {
                 tooltip: 'Close sidebar',
                 onPressed: () =>
                     ref.read(sidebarCollapsedProvider.notifier).set(true),
-                icon: const Icon(Icons.keyboard_double_arrow_left, size: 18),
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           if (onSearch != null) ...[
             _SearchBox(onTap: onSearch!),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
           ],
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
@@ -959,11 +994,11 @@ class _AppSidebar extends ConsumerWidget {
     final c = context.clarity;
     final backupDue = ref.watch(backupDueProvider);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 20, 12, 16),
+      padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Center(child: _BrandMark(size: 36)),
+          const Center(child: _BrandMark(size: 32)),
           const SizedBox(height: 12),
           Center(
             child: IconButton(
@@ -971,7 +1006,7 @@ class _AppSidebar extends ConsumerWidget {
               tooltip: 'Open sidebar',
               onPressed: () =>
                   ref.read(sidebarCollapsedProvider.notifier).set(false),
-              icon: const Icon(Icons.keyboard_double_arrow_right, size: 18),
+              icon: const Icon(Icons.chevron_right_rounded, size: 20),
             ),
           ),
           if (onSearch != null)
@@ -1028,8 +1063,8 @@ class _Brand extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          const _BrandMark(size: 36),
-          const SizedBox(width: 12),
+          const _BrandMark(size: 32),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1080,8 +1115,8 @@ class _SearchBox extends StatelessWidget {
           key: const ValueKey('sidebar-search'),
           borderRadius: BorderRadius.circular(Dt.rSm),
           onTap: onTap,
-          child: SizedBox(
-            height: 40,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 36),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
@@ -1093,7 +1128,7 @@ class _SearchBox extends StatelessWidget {
                       'Search…',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.labelMedium?.copyWith(
                         color: c.textMuted,
                       ),
                     ),
@@ -1143,7 +1178,7 @@ class _UserRow extends ConsumerWidget {
     final initials = initialsOf(name);
     final dark = theme.brightness == Brightness.dark;
     final avatar = CircleAvatar(
-      radius: 16,
+      radius: 15,
       backgroundColor: c.border,
       child: Text(
         initials,
@@ -1288,106 +1323,112 @@ class _MobileTopBar extends ConsumerWidget {
   const _MobileTopBar();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => SizedBox(
-    height: 46,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          const _BrandMark(),
-          const SizedBox(width: 8),
-          // The name gives way on narrow phones, never the buttons.
-          Expanded(
-            child: Text(
-              Dt.appName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall,
+  Widget build(BuildContext context, WidgetRef ref) => ColoredBox(
+    color: context.clarity.chrome,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            const _BrandMark(),
+            const SizedBox(width: 8),
+            // The name gives way on narrow phones, never the buttons.
+            Expanded(
+              child: Text(
+                Dt.appName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
             ),
-          ),
-          const SyncStatusBadge(compact: true),
-          if (ref.watch(availableAppTabsProvider).contains(AppTab.todo))
-            const QuickTodoButton(compact: true),
-          IconButton(
-            key: const ValueKey('phone-search'),
-            tooltip: 'Search',
-            visualDensity: VisualDensity.compact,
-            onPressed: () => showQuickSearch(context),
-            icon: const Icon(Icons.search, size: 22),
-          ),
-          if (ref.watch(accountsEnabledProvider) &&
-              ref.watch(currentUserProvider) != null)
-            const ReportBell(compact: true),
-          PopupMenuButton<String>(
-            key: const ValueKey('phone-menu'),
-            tooltip: 'More options',
-            onSelected: (action) {
-              if (action == 'search') {
-                showQuickSearch(context);
-              } else if (action == 'record') {
-                final me = ref.read(linkedStaffProvider);
-                if (me != null) showStaffProfile(context, me.id);
-              } else if (action == 'settings') {
-                ref.read(appActionsProvider).selectTab(AppTab.settings);
-              } else if (action == 'refresh') {
-                ref.read(dataVersionProvider.notifier).bump();
-              } else if (action == 'password') {
-                showChangeOwnPassword(context);
-              } else if (action == 'sessions') {
-                showSessions(context);
-              } else if (action == 'text-size') {
-                showTextSize(context);
-              } else if (action == 'signout') {
-                ref.read(sessionProvider.notifier).signOut();
-              }
-            },
-            itemBuilder: (context) {
-              final role = ref.read(sessionProvider);
-              final user = ref.read(currentUserProvider);
-              return [
-                if (user != null)
+            const SyncStatusBadge(compact: true),
+            if (ref.watch(availableAppTabsProvider).contains(AppTab.todo))
+              const QuickTodoButton(compact: true),
+            IconButton(
+              key: const ValueKey('phone-search'),
+              tooltip: 'Search',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => showQuickSearch(context),
+              icon: const Icon(Icons.search, size: 22),
+            ),
+            if (ref.watch(accountsEnabledProvider) &&
+                ref.watch(currentUserProvider) != null)
+              const ReportBell(compact: true),
+            PopupMenuButton<String>(
+              key: const ValueKey('phone-menu'),
+              tooltip: 'More options',
+              onSelected: (action) {
+                if (action == 'search') {
+                  showQuickSearch(context);
+                } else if (action == 'record') {
+                  final me = ref.read(linkedStaffProvider);
+                  if (me != null) showStaffProfile(context, me.id);
+                } else if (action == 'settings') {
+                  ref.read(appActionsProvider).selectTab(AppTab.settings);
+                } else if (action == 'refresh') {
+                  ref.read(dataVersionProvider.notifier).bump();
+                } else if (action == 'password') {
+                  showChangeOwnPassword(context);
+                } else if (action == 'sessions') {
+                  showSessions(context);
+                } else if (action == 'text-size') {
+                  showTextSize(context);
+                } else if (action == 'signout') {
+                  ref.read(sessionProvider.notifier).signOut();
+                }
+              },
+              itemBuilder: (context) {
+                final role = ref.read(sessionProvider);
+                final user = ref.read(currentUserProvider);
+                return [
+                  if (user != null)
+                    PopupMenuItem(
+                      enabled: false,
+                      child: Text('${user.fullName} · ${user.role.label}'),
+                    ),
+                  const PopupMenuItem(value: 'search', child: Text('Search')),
+                  if (ref.read(linkedStaffProvider) != null)
+                    const PopupMenuItem(
+                      value: 'record',
+                      child: Text('Your record'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child: Text('Settings'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'refresh',
+                    child: Text('Refresh data'),
+                  ),
+                  if (user != null) ...[
+                    const PopupMenuItem(
+                      value: 'password',
+                      child: Text('Change password'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'sessions',
+                      child: Text('Your sessions'),
+                    ),
+                  ],
+                  const PopupMenuItem(
+                    value: 'text-size',
+                    child: Text('Text size'),
+                  ),
                   PopupMenuItem(
-                    enabled: false,
-                    child: Text('${user.fullName} · ${user.role.label}'),
+                    value: 'signout',
+                    child: Text(
+                      user != null
+                          ? 'Sign out'
+                          : 'Switch profile (${role?.label ?? ''})',
+                    ),
                   ),
-                const PopupMenuItem(value: 'search', child: Text('Search')),
-                if (ref.read(linkedStaffProvider) != null)
-                  const PopupMenuItem(
-                    value: 'record',
-                    child: Text('Your record'),
-                  ),
-                const PopupMenuItem(value: 'settings', child: Text('Settings')),
-                const PopupMenuItem(
-                  value: 'refresh',
-                  child: Text('Refresh data'),
-                ),
-                if (user != null) ...[
-                  const PopupMenuItem(
-                    value: 'password',
-                    child: Text('Change password'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'sessions',
-                    child: Text('Your sessions'),
-                  ),
-                ],
-                const PopupMenuItem(
-                  value: 'text-size',
-                  child: Text('Text size'),
-                ),
-                PopupMenuItem(
-                  value: 'signout',
-                  child: Text(
-                    user != null
-                        ? 'Sign out'
-                        : 'Switch profile (${role?.label ?? ''})',
-                  ),
-                ),
-              ];
-            },
-            icon: const Icon(Icons.more_horiz),
-          ),
-        ],
+                ];
+              },
+              icon: const Icon(Icons.more_horiz),
+            ),
+          ],
+        ),
       ),
     ),
   );

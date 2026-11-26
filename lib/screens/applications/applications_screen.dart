@@ -181,9 +181,10 @@ class _ApplicationsScreenState extends ConsumerState<ApplicationsScreen> {
             apps: apps,
             onOpen: (a) => showApplicationDetails(context, ref, a),
           );
-          // In landscape or above a keyboard, scroll the controls away so
-          // they cannot consume the table's entire viewport.
-          if (viewport.maxHeight < 420) {
+          // Let the controls scroll when the keyboard, a short window, or
+          // larger text leaves too little room for the table.
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          if (viewport.maxHeight < 420 * textScale) {
             return ListView(
               padding: EdgeInsets.fromLTRB(pad, 16, pad, 28),
               children: [

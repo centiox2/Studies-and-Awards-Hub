@@ -11,8 +11,7 @@ import 'clarity.dart';
 import 'sync_status.dart';
 import 'week_label.dart';
 
-/// The top of every page: today's date and the time (ticking each minute,
-/// so a screen left open shows how current it is), the page's title, and
+/// The page title, today's date and time (updated each minute), and
 /// its toolbar — the sync status first, then [actions] (at most one
 /// primary button, last).
 class AppPageHeader extends ConsumerStatefulWidget {
@@ -60,15 +59,15 @@ class _AppPageHeaderState extends ConsumerState<AppPageHeader> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final eyebrow =
-        '${DateFormat('EEEE, d MMMM y').format(now)} · '
+    final date =
+        '${DateFormat('EEE, d MMM y').format(now)} · '
         '${DateFormat('HH:mm').format(now)}';
     // The sync chip (phones show it in the top bar instead).
     final sync =
         ref.watch(cloudSyncProvider.select((s) => s.phase)) != SyncPhase.off &&
         MediaQuery.sizeOf(context).width >= 1050;
     return PageHeader(
-      eyebrow: eyebrow,
+      subtitle: date,
       title: widget.title ?? widget.tab.label,
       actions: [if (sync) const SyncStatusBadge(), ...widget.actions],
     );

@@ -52,7 +52,10 @@ class AppPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+              padding: EdgeInsets.symmetric(
+                horizontal: Dt.s20,
+                vertical: compactHeader ? Dt.s8 : Dt.s12,
+              ),
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: c.borderSubtle)),
               ),
@@ -62,7 +65,10 @@ class AppPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(title, style: theme.textTheme.titleMedium),
+                      Semantics(
+                        header: true,
+                        child: Text(title, style: theme.textTheme.titleMedium),
+                      ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 4),
                         Text(
