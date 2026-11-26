@@ -52,6 +52,7 @@ class _QuickSearchDialog extends ConsumerStatefulWidget {
 class _QuickSearchDialogState extends ConsumerState<_QuickSearchDialog> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
+  final _rowKeys = <int, GlobalKey>{};
   int _highlight = 0;
 
   @override
@@ -234,9 +235,17 @@ class _QuickSearchDialogState extends ConsumerState<_QuickSearchDialog> {
     if (key == LogicalKeyboardKey.arrowDown ||
         key == LogicalKeyboardKey.arrowUp) {
       final step = key == LogicalKeyboardKey.arrowDown ? 1 : -1;
-      setState(() {
-        _highlight = (_highlight + step) % results.length;
-        if (_highlight < 0) _highlight += results.length;
+      final previous = _highlight.clamp(0, results.length - 1);
+      setState(() => _highlight = (previous + step) % results.length);
+      final direction = _highlight >= previous
+          ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+          : ScrollPositionAlignmentPolicy.keepVisibleAtStart;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final row = _rowKeys[_highlight]?.currentContext;
+        if (row != null) {
+          Scrollable.ensureVisible(row, alignmentPolicy: direction);
+        }
       });
       return KeyEventResult.handled;
     }
@@ -279,6 +288,7 @@ class _QuickSearchDialogState extends ConsumerState<_QuickSearchDialog> {
       }
       rows.add(
         _ResultRow(
+          key: _rowKeys.putIfAbsent(i, GlobalKey.new),
           result: r,
           highlighted: i == highlight,
           onTap: () => _choose(r),
@@ -303,7 +313,10 @@ class _QuickSearchDialogState extends ConsumerState<_QuickSearchDialog> {
                 child: TextField(
                   controller: _controller,
                   autofocus: true,
-                  onChanged: (_) => setState(() => _highlight = 0),
+                  onChanged: (_) {
+                    setState(() => _highlight = 0);
+                    if (_scroll.hasClients) _scroll.jumpTo(0);
+                  },
                   decoration: const InputDecoration(
                     hintText: 'Search clients, staff, weeks (28/09), payments…',
                     prefixIcon: Icon(Icons.search, size: 18),
@@ -324,11 +337,13 @@ class _QuickSearchDialogState extends ConsumerState<_QuickSearchDialog> {
                           ),
                         ),
                       )
-                    : ListView(
+                    : SingleChildScrollView(
                         controller: _scroll,
-                        shrinkWrap: true,
                         padding: const EdgeInsets.only(bottom: 8),
-                        children: rows,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: rows,
+                        ),
                       ),
               ),
               const Divider(height: 1),
@@ -355,6 +370,7 @@ class _QuickSearchDialogState extends ConsumerState<_QuickSearchDialog> {
 
 class _ResultRow extends StatelessWidget {
   const _ResultRow({
+    super.key,
     required this.result,
     required this.highlighted,
     required this.onTap,

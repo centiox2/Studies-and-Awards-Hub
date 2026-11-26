@@ -77,7 +77,11 @@ class _StaffProfileDialog extends ConsumerWidget {
         children: [
           LayoutBuilder(
             builder: (context, c) {
-              final perRow = compact ? 2 : 4;
+              final minTile = MediaQuery.textScalerOf(context).scale(150);
+              final perRow = ((c.maxWidth + 10) / (minTile + 10)).floor().clamp(
+                1,
+                compact ? 2 : 4,
+              );
               final w = (c.maxWidth - 10 * (perRow - 1)) / perRow;
               return Wrap(
                 spacing: 10,

@@ -1389,6 +1389,26 @@ void main() {
     expect(WeekRepository(boss).getAllWeeks(), isEmpty);
   });
 
+  test(
+    'a connected device respects a workspace cleared on the cloud',
+    () async {
+      final token = await cloud.claim('pass1234');
+      WeekRepository(admin).createWeekFor(DateTime(2026, 10, 12));
+      final engine = SyncEngine(admin, cloud);
+      await engine.pull(token: token, readToken: token);
+      expect(engine.connected, isTrue);
+      for (final rows in cloud.tables.values) {
+        rows.clear();
+      }
+
+      expect(await engine.pull(token: token, readToken: token), isTrue);
+      expect(StaffRepository(admin).getAll(), isEmpty);
+      expect(WeekRepository(admin).getAllWeeks(), isEmpty);
+      expect(engine.pending, 0);
+      expect(cloud.tables.values.every((rows) => rows.isEmpty), isTrue);
+    },
+  );
+
   test('unsent local edits are never overwritten by cloud data', () async {
     final token = await cloud.claim('pass1234');
     final week = WeekRepository(admin).createWeekFor(DateTime(2026, 10, 12));

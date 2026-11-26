@@ -730,9 +730,8 @@ class TaskModeToggle extends StatelessWidget {
           onTap: onChanged == null || on ? null : () => onChanged!(m),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
-            height: h - 4,
+            constraints: BoxConstraints(minHeight: h - 4),
             padding: EdgeInsets.symmetric(horizontal: dense ? 9 : 14),
-            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: on
                   ? (m == TaskMode.done
@@ -759,16 +758,20 @@ class TaskModeToggle extends StatelessWidget {
                   color: on ? color : c.textMuted,
                 ),
                 SizedBox(width: dense ? 4 : 6),
-                Text(
-                  m.label,
-                  style:
-                      (dense
-                              ? theme.textTheme.labelSmall
-                              : theme.textTheme.labelLarge)
-                          ?.copyWith(
-                            color: on ? color : c.textMuted,
-                            fontWeight: on ? FontWeight.w600 : FontWeight.w500,
-                          ),
+                Flexible(
+                  child: Text(
+                    m.label,
+                    style:
+                        (dense
+                                ? theme.textTheme.labelSmall
+                                : theme.textTheme.labelLarge)
+                            ?.copyWith(
+                              color: on ? color : c.textMuted,
+                              fontWeight: on
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                            ),
+                  ),
                 ),
               ],
             ),
@@ -779,14 +782,13 @@ class TaskModeToggle extends StatelessWidget {
 
     return Container(
       key: ValueKey(keyPrefix),
-      height: h,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: c.track,
         borderRadius: BorderRadius.circular(Dt.rPill),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        runSpacing: 2,
         children: [for (final m in TaskMode.values) button(m)],
       ),
     );

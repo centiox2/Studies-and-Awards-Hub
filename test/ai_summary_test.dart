@@ -686,6 +686,73 @@ void main() {
     },
   );
 
+  testWidgets('Overview discovers a new report while open', (tester) async {
+    var reads = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          aiSummaryAccessProvider.overrideWith((ref) async => true),
+          aiSummariesProvider.overrideWith((ref) async {
+            final data = summaryFixture();
+            if (++reads > 1) {
+              (data['summaries'] as List).first['content']['brief'] =
+                  'New scheduled report.';
+            }
+            return data;
+          }),
+        ],
+        child: const MaterialApp(home: Scaffold(body: AiSummaryPreview())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    expect(find.text('New scheduled report.'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('A failed refresh preserves the selected archive', (
+    tester,
+  ) async {
+    var fail = false;
+    await tester.pumpWidget(
+      ProviderScope(
+        retry: (_, _) => null,
+        overrides: [
+          aiSummaryAccessProvider.overrideWith((ref) async => true),
+          aiSummariesProvider.overrideWith((ref) async {
+            if (fail) throw StateError('Temporarily offline');
+            return summaryFixture();
+          }),
+        ],
+        child: const MaterialApp(home: Scaffold(body: AiSummaryScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('report-date-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('17 Nov 2026').last);
+    await tester.pumpAndSettle();
+    final archive = find.text('Daily company overview for 2026-11-17.');
+    expect(archive, findsOneWidget);
+
+    final refresh = find.byTooltip('Refresh reports');
+    fail = true;
+    await tester.tap(refresh);
+    await tester.pumpAndSettle();
+    expect(archive, findsOneWidget);
+    expect(find.textContaining('Couldn’t refresh.'), findsOneWidget);
+
+    fail = false;
+    await tester.tap(refresh);
+    await tester.pumpAndSettle();
+    expect(archive, findsOneWidget);
+    expect(find.textContaining('Couldn’t refresh.'), findsNothing);
+  });
+
   testWidgets('Idle archive stays open during access checks', (tester) async {
     var accessChecks = 0;
     var reads = 0;

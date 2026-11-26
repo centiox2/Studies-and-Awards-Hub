@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -38,6 +40,21 @@ Map<String, Map> _reports(Object? value) {
   return rows;
 }
 
+// Only Overview needs to discover a report generated elsewhere while its
+// preview is open. The full report reader keeps its own refresh behavior.
+final _overviewSummaryProvider = Provider.autoDispose((ref) {
+  final state = ref.watch(aiSummariesProvider);
+  final status = state.value?['status'];
+  final generating = status == 'queued' || status == 'running';
+  if (!state.isLoading && (!generating || state.hasError)) {
+    final timer = Timer(const Duration(minutes: 1), () {
+      ref.invalidate(aiSummariesProvider);
+    });
+    ref.onDispose(timer.cancel);
+  }
+  return state;
+});
+
 class AiSummaryPreview extends ConsumerWidget {
   const AiSummaryPreview({super.key, this.bottomPadding = 24});
   final double bottomPadding;
@@ -46,7 +63,7 @@ class AiSummaryPreview extends ConsumerWidget {
     if (!ref.watch(aiSummaryAccessProvider.select(summaryAccessGranted))) {
       return const SizedBox.shrink();
     }
-    final state = ref.watch(aiSummariesProvider);
+    final state = ref.watch(_overviewSummaryProvider);
     return Padding(
       padding: EdgeInsets.only(bottom: bottomPadding),
       child: AppPanel(
@@ -113,10 +130,19 @@ class AiSummaryScreen extends ConsumerStatefulWidget {
 class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
   String? _selectedDate;
   bool _detailed = false;
+  int? _readerId;
+  Map<String, dynamic>? _loadedData;
 
   @override
   Widget build(BuildContext context) {
+    final reader = ref.watch(currentUserProvider.select((user) => user?.id));
+    if (_readerId != reader) {
+      _readerId = reader;
+      _loadedData = null;
+      _selectedDate = null;
+    }
     if (!ref.watch(aiSummaryAccessProvider.select(summaryAccessGranted))) {
+      _loadedData = null;
       final access = ref.watch(aiSummaryAccessProvider);
       return ReportReader(
         template: null,
@@ -146,11 +172,13 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
       }
     });
     final state = ref.watch(aiSummariesProvider);
-    final data = state.when(
+    final fresh = state.when(
       data: (data) => data,
       loading: () => null,
       error: (_, _) => null,
     );
+    if (fresh != null) _loadedData = fresh;
+    final data = fresh ?? (state.hasError ? _loadedData : null);
     final rows = _reports(data?['summaries']);
     final date = rows.containsKey(_selectedDate)
         ? _selectedDate
@@ -196,6 +224,7 @@ class _AiSummaryScreenState extends ConsumerState<AiSummaryScreen> {
             ? null
             : () => ref.invalidate(aiSummariesProvider),
         refreshing: state.isLoading,
+        refreshFailed: state.hasError && data != null,
       ),
       fallback: fallback,
     );
@@ -229,6 +258,7 @@ class _ReportHeader extends StatelessWidget {
     this.onDate,
     this.onRefresh,
     this.refreshing = false,
+    this.refreshFailed = false,
   });
 
   final Map<String, dynamic>? data;
@@ -240,6 +270,7 @@ class _ReportHeader extends StatelessWidget {
   final ValueChanged<String?>? onDate;
   final VoidCallback? onRefresh;
   final bool refreshing;
+  final bool refreshFailed;
 
   @override
   Widget build(BuildContext context) {
@@ -247,13 +278,15 @@ class _ReportHeader extends StatelessWidget {
     final colors = context.clarity;
     final reportState = data;
     final canGenerate = reportState?['can_generate'] == true;
-    final status = switch (reportState?['status']) {
-      'ready' when reportState?['enabled'] == true =>
-        'Scheduled daily at 5:05 pm EAT.',
-      'ready' => 'Daily schedule is off.',
-      _ when reportState != null => summaryStatus(reportState),
-      _ => null,
-    };
+    final status = refreshFailed
+        ? 'Couldn’t refresh. Showing the last loaded report.'
+        : switch (reportState?['status']) {
+            'ready' when reportState?['enabled'] == true =>
+              'Scheduled daily at 5:05 pm EAT.',
+            'ready' => 'Daily schedule is off.',
+            _ when reportState != null => summaryStatus(reportState),
+            _ => null,
+          };
     final factsStyle = theme.textTheme.bodySmall?.copyWith(
       color: colors.textMuted,
     );

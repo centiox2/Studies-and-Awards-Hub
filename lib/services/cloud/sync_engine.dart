@@ -127,16 +127,17 @@ class SyncEngine {
     // brings everything), rather than being overwritten here.
     if (_lastSeq() != seqBefore) return false;
     final remoteEmpty = snap.values.every((rows) => rows.isEmpty);
-    final localEmpty = _localIsEmpty();
-
-    if (remoteEmpty) {
-      // The cloud is new (or was emptied): the admin's device seeds it.
-      if (token != null && !localEmpty) {
+    if (remoteEmpty && !connected) {
+      // A device may seed a new workspace only on its first connection.
+      if (token != null && !_localIsEmpty()) {
         await _uploadAll(token);
         _setState(_connectedKey, '1');
       }
       return false;
     }
+    // A structured snapshot can explicitly clear tables. An empty object
+    // says nothing about which tables the server meant to replace.
+    if (snap.isEmpty) return false;
     // Joining for the first time with changes made here offline: the
     // cloud's data is the team's, but this device's work is kept.
     if (!connected) _keepRecovery();

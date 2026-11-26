@@ -92,14 +92,9 @@ class _NewWeekDialogState extends ConsumerState<_NewWeekDialog> {
 
     return AlertDialog(
       title: Text(existing ? 'Open existing week' : 'New week'),
-      content: ConstrainedBox(
-        // Never wider than the window minus padding — prevents clipping on
-        // small windows and phones.
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width < 470
-              ? MediaQuery.sizeOf(context).width - 48
-              : 420,
-        ),
+      scrollable: true,
+      content: SizedBox(
+        width: 420,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,62 +104,54 @@ class _NewWeekDialogState extends ConsumerState<_NewWeekDialog> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: Dt.s12),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            for (final day in days)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: Dt.s4),
+                child: Row(
                   children: [
-                    ...days.map(
-                      (d) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: Dt.s4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.event_outlined,
-                              size: 14,
-                              color: Dt.textFaint(Theme.of(context)),
-                            ),
-                            const SizedBox(width: Dt.s8),
-                            Text(
-                              fmt.format(d),
-                              style: Dt.mono(context, size: 12.5),
-                            ),
-                          ],
-                        ),
+                    Icon(
+                      Icons.event_outlined,
+                      size: 14,
+                      color: Dt.textFaint(Theme.of(context)),
+                    ),
+                    const SizedBox(width: Dt.s8),
+                    Expanded(
+                      child: Text(
+                        fmt.format(day),
+                        style: Dt.mono(context, size: 12.5),
                       ),
                     ),
-                    const SizedBox(height: Dt.s12),
-                    Text(
-                      '$activeStaff active staff members will be added to every day.',
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: Dt.textMuted(Theme.of(context))),
-                    ),
-                    if (existing)
-                      Padding(
-                        padding: const EdgeInsets.only(top: Dt.s8),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: Theme.of(context).colorScheme.error,
-                              size: 16,
-                            ),
-                            const SizedBox(width: Dt.s8),
-                            Expanded(
-                              child: Text(
-                                'A week starting ${DateFormat('dd/MM/yyyy').format(_monday)} already exists. It will be opened instead of duplicated.',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                   ],
                 ),
               ),
+            const SizedBox(height: Dt.s12),
+            Text(
+              '$activeStaff active staff members will be added to every day.',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: Dt.textMuted(Theme.of(context))),
             ),
+            if (existing)
+              Padding(
+                padding: const EdgeInsets.only(top: Dt.s8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 16,
+                    ),
+                    const SizedBox(width: Dt.s8),
+                    Expanded(
+                      child: Text(
+                        'A week starting ${DateFormat('dd/MM/yyyy').format(_monday)} already exists. It will be opened instead of duplicated.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             TextButton.icon(
               onPressed: _pickWeek,
               icon: const Icon(Icons.edit_calendar, size: 16),

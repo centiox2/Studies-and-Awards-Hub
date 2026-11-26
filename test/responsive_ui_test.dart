@@ -150,6 +150,9 @@ void main() {
     (AppTab.settings, 'settings-about', ['About']),
     (AppTab.settings, 'settings-diagnostics', ['Diagnostics']),
     (AppTab.dailyReports, 'daily-submissions', ['My submissions']),
+    (AppTab.dailyReports, 'task-composer-dialog', ['Add with details']),
+    (AppTab.history, 'new-week-dialog', ['New week']),
+    (AppTab.reports, 'report-staff-dialog', ['Ellis']),
     (AppTab.todo, 'todo-history', ['History']),
     (AppTab.applications, 'application-details', ['Brian Sample']),
     (AppTab.settings, 'navigation-editor', ['Customize bottom bar']),
@@ -300,6 +303,16 @@ void main() {
             hasLength(1),
             reason: 'The count beside the title must not split a word across lines.',
           );
+        }
+        if (name == 'report-staff-dialog') {
+          final label = tester.renderObject<RenderParagraph>(
+            find.text('Average per day worked'),
+          );
+          expect(label.didExceedMaxLines, isFalse);
+        }
+        if (name == 'new-week-dialog') {
+          expect(find.byType(AlertDialog), findsOneWidget);
+          expect(find.text('Change week'), findsOneWidget);
         }
         if (name == 'application-details') {
           final status = find.descendant(

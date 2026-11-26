@@ -88,6 +88,36 @@ void main() {
     expect(find.textContaining('Search clients, staff, weeks'), findsNothing);
   });
 
+  testWidgets('keyboard search keeps the highlighted result visible', (
+    tester,
+  ) async {
+    ApplicationRepository(db).importCsv(
+      [
+        csv.split('\n').first,
+        for (var i = 1; i <= 8; i++)
+          'Scrolling client $i,ECU,Australia,,,,,Statement building,Ellis,',
+      ].join('\n'),
+    );
+    await pumpAs(tester, UserRole.admin);
+    tester.view.physicalSize = const Size(390, 330);
+    await tester.pumpAndSettle();
+    await openSearch(tester);
+    await tester.enterText(find.byType(TextField).last, 'scrolling client');
+    await tester.pumpAndSettle();
+
+    final first = find.text('Scrolling client 1');
+    final last = find.text('Scrolling client 8');
+    expect(first.hitTestable(), findsOneWidget);
+    expect(last.hitTestable(), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+    expect(last.hitTestable(), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(first.hitTestable(), findsOneWidget);
+  });
+
   testWidgets('view-only accounts can search too', (tester) async {
     ApplicationRepository(db).importCsv(csv);
     await pumpAs(tester, UserRole.director);
