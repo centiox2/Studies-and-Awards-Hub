@@ -310,7 +310,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.widgetWithText(FilledButton, 'Add 2 · KSh 46,940'),
+        matching: find.widgetWithText(FilledButton, 'Add 2 · KSh 13,545'),
       ),
     );
     await tester.pumpAndSettle();
